@@ -1,0 +1,13 @@
+- Name: Lantern Vermin
+- Tier: 1
+- Type: Minion
+- Description: Tiny corpse-fed insects carrying pale light.
+- Motives and tactics: swarm, feed, distract
+- Difficulty: 10
+- Thresholds: 3/6
+- HP: 2
+- Stress: 2
+- ATK: -2
+- Standard attack: Bites, Melee, 1 physical
+- Features:
+  - Distracting Light - Passive: Targets nearby have disadvantage on Instinct rolls.

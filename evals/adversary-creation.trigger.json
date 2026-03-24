@@ -1,0 +1,77 @@
+[
+  {
+    "category": "should_trigger",
+    "query": "Create a tier 1 standard guard for a haunted border town.",
+    "notes": "Direct custom adversary request with explicit tier and role."
+  },
+  {
+    "category": "should_trigger",
+    "query": "Make me a Daggerheart tier 2 skulk assassin who uses poison and rooftops.",
+    "notes": "Explicit tier-role adversary build."
+  },
+  {
+    "category": "should_trigger",
+    "query": "I need a custom support enemy for a forest shrine encounter.",
+    "notes": "Custom adversary with explicit role but implied tier default."
+  },
+  {
+    "category": "should_trigger",
+    "query": "Build a solo boss monster for level 8 heroes in a volcano.",
+    "notes": "Should infer tier 4 solo."
+  },
+  {
+    "category": "should_trigger",
+    "query": "Generate a minion swarm for a cult encounter at tier 3.",
+    "notes": "Explicit tier and role, plural concept still same skill."
+  },
+  {
+    "category": "should_trigger_default",
+    "query": "Make me a custom Daggerheart enemy for a haunted chapel.",
+    "notes": "No explicit tier or role; should default to tier 1 standard unless context suggests otherwise."
+  },
+  {
+    "category": "should_trigger_default",
+    "query": "Create a frontier outlaw adversary.",
+    "notes": "Sparse prompt; should still activate and likely default if not clarified."
+  },
+  {
+    "category": "should_ask_followup",
+    "query": "Make me a bandit captain.",
+    "notes": "Role could plausibly be leader, skulk, ranged, or standard."
+  },
+  {
+    "category": "should_ask_followup",
+    "query": "Create a court enemy for my campaign.",
+    "notes": "Could be social, leader, support, or standard."
+  },
+  {
+    "category": "should_ask_followup",
+    "query": "I need a boss for the sewers.",
+    "notes": "Boss could imply bruiser, solo, leader, or a custom environment-backed fight."
+  },
+  {
+    "category": "should_not_trigger",
+    "query": "Scale this tier 3 bruiser down to tier 1.",
+    "notes": "This belongs to adversary scaling."
+  },
+  {
+    "category": "should_not_trigger",
+    "query": "How many battle points should I spend for five PCs?",
+    "notes": "This belongs to encounter budgeting."
+  },
+  {
+    "category": "should_not_trigger",
+    "query": "Design a tense court scene with one bribed witness.",
+    "notes": "This belongs to scene planning."
+  },
+  {
+    "category": "should_not_trigger",
+    "query": "Build a 3-session arc around an undead invasion.",
+    "notes": "This belongs to arc planning."
+  },
+  {
+    "category": "should_not_trigger",
+    "query": "Write a short email to my players about tonight's start time.",
+    "notes": "Non-skill, everyday writing task."
+  }
+]

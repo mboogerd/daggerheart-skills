@@ -1,0 +1,37 @@
+[
+  {
+    "id": "tier1_leader_smoke",
+    "prompt": "Create a tier 1 leader for a disciplined militia faction.",
+    "expected_tier": 1,
+    "expected_role": "leader",
+    "sample_output": "skills/evals/adversary-creation/samples/pass-tier1-leader.md"
+  },
+  {
+    "id": "tier1_default_standard",
+    "prompt": "Make me an enemy for a haunted chapel.",
+    "expected_tier": 1,
+    "expected_role": "standard",
+    "sample_output": null
+  },
+  {
+    "id": "tier2_skulk_smoke",
+    "prompt": "Make a tier 2 skulk thief who weaponizes smoke and acrobatics.",
+    "expected_tier": 2,
+    "expected_role": "skulk",
+    "sample_output": null
+  },
+  {
+    "id": "tier3_bruiser_smoke",
+    "prompt": "Create a tier 3 bruiser grave-ogre for a ruined keep.",
+    "expected_tier": 3,
+    "expected_role": "bruiser",
+    "sample_output": null
+  },
+  {
+    "id": "tier4_solo_smoke",
+    "prompt": "Build a tier 4 solo dragon of shattered obsidian.",
+    "expected_tier": 4,
+    "expected_role": "solo",
+    "sample_output": null
+  }
+]

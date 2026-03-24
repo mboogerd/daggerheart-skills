@@ -1,0 +1,14 @@
+- Name: Reckless War Marshal
+- Tier: 1
+- Type: Leader
+- Description: A warlord with impossible power for the tier.
+- Motives and tactics: dominate, conquer, command
+- Difficulty: 18
+- Thresholds: 15/30
+- HP: 10
+- Stress: 6
+- ATK: +6
+- Standard attack: War Spear, Far, 3d12+10 physical
+- Features:
+  - Endless Command - Passive: All allies everywhere gain advantage forever.
+  - Meteor Charge - Action: Deal 6d12 direct damage to every target in sight.

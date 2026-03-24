@@ -1,0 +1,32 @@
+[
+  {
+    "skill": "daggerheart-arc-planning",
+    "query": "Build me a 3-session arc around a city coup that ties into one PC's estranged family.",
+    "should_trigger": true
+  },
+  {
+    "skill": "daggerheart-scene-planning",
+    "query": "Design a single tense court scene where the heroes might lose political support.",
+    "should_trigger": true
+  },
+  {
+    "skill": "daggerheart-adversary-scaling",
+    "query": "Take this tier 3 monster and scale it down for level 1 characters.",
+    "should_trigger": true
+  },
+  {
+    "skill": "daggerheart-session-zero",
+    "query": "Give me a checklist for running our Daggerheart session zero next week.",
+    "should_trigger": true
+  },
+  {
+    "skill": "daggerheart-encounter-budgeting",
+    "query": "How many battle points should I spend for four PCs if I want a slightly hard fight?",
+    "should_trigger": true
+  },
+  {
+    "skill": "daggerheart-adversary-creation",
+    "query": "Write an email to my players about tonight's schedule.",
+    "should_trigger": false
+  }
+]
