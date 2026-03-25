@@ -35,7 +35,8 @@ permissions:
   id-token: write
 
 jobs:
-  cross-eval:
+  mock-cross-eval:
+    if: ${{ inputs.mock_run }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -51,133 +52,16 @@ jobs:
       - name: Install Python dependencies
         run: python3 -m pip install -r requirements.txt
 
-      - name: Verify live-run secrets
-        if: ${{ !inputs.mock_run }}
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          test -n "$OPENAI_API_KEY"
-          test -n "$ANTHROPIC_API_KEY"
-
       - name: Refresh checked-in fixtures
         run: python3 scripts/render_cross_eval_fixtures.py "${{ inputs.scenario }}"
 
-      - name: Validate supported attempt count
-        if: ${{ !inputs.mock_run }}
-        run: test "${{ inputs.max_attempts }}" -ge 1 && test "${{ inputs.max_attempts }}" -le 4
-
-      - name: Prepare cross-eval prompts
-        if: ${{ !inputs.mock_run }}
-        run: |
-          python3 scripts/run_cross_eval_session.py \
-            --scenario "${{ inputs.scenario }}" \
-            --output-root cross-eval \
-            --codex-model "${{ inputs.codex_model }}" \
-            --claude-model "${{ inputs.claude_model }}" \
-            --max-attempts "${{ inputs.max_attempts }}" \
-            --prepare-only
-
-      - name: Attempt 1 prompt for Codex
-        if: ${{ !inputs.mock_run }}
-        run: test -f cross-eval/attempt-01-codex-by-claude/prompts/codex-generate.txt
-
-      - name: Attempt 1 generate with Codex
-        if: ${{ !inputs.mock_run }}
-        uses: openai/codex-action@v1
-        with:
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          prompt-file: cross-eval/attempt-01-codex-by-claude/prompts/codex-generate.txt
-          output-file: cross-eval/attempt-01-codex-by-claude/outputs/codex-generated.md
-          working-directory: .
-          sandbox: read-only
-          codex-args: --model ${{ inputs.codex_model }}
-
-      - name: Load attempt 2 Claude prompt
-        id: attempt_2_prompt
-        if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 2 }}
-        run: |
-          {
-            echo 'prompt<<EOF'
-            cat cross-eval/attempt-02-claude-by-codex/prompts/claude-generate.txt
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Attempt 2 generate with Claude
-        id: attempt_2_claude
-        if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 2 }}
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ github.token }}
-          prompt: ${{ steps.attempt_2_prompt.outputs.prompt }}
-          claude_args: |
-            --model ${{ inputs.claude_model }}
-            --max-turns 8
-
-      - name: Extract attempt 2 Claude output
-        if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 2 }}
-        run: |
-          python3 scripts/extract_claude_action_output.py \
-            --input "${{ steps.attempt_2_claude.outputs.execution_file }}" \
-            --output cross-eval/attempt-02-claude-by-codex/outputs/claude-generated.md
-
-      - name: Attempt 3 prompt for Codex
-        if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 3 }}
-        run: test -f cross-eval/attempt-03-codex-by-claude/prompts/codex-generate.txt
-
-      - name: Attempt 3 generate with Codex
-        if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 3 }}
-        uses: openai/codex-action@v1
-        with:
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          prompt-file: cross-eval/attempt-03-codex-by-claude/prompts/codex-generate.txt
-          output-file: cross-eval/attempt-03-codex-by-claude/outputs/codex-generated.md
-          working-directory: .
-          sandbox: read-only
-          codex-args: --model ${{ inputs.codex_model }}
-
-      - name: Load attempt 4 Claude prompt
-        id: attempt_4_prompt
-        if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 4 }}
-        run: |
-          {
-            echo 'prompt<<EOF'
-            cat cross-eval/attempt-04-claude-by-codex/prompts/claude-generate.txt
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Attempt 4 generate with Claude
-        id: attempt_4_claude
-        if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 4 }}
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ github.token }}
-          prompt: ${{ steps.attempt_4_prompt.outputs.prompt }}
-          claude_args: |
-            --model ${{ inputs.claude_model }}
-            --max-turns 8
-
-      - name: Extract attempt 4 Claude output
-        if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 4 }}
-        run: |
-          python3 scripts/extract_claude_action_output.py \
-            --input "${{ steps.attempt_4_claude.outputs.execution_file }}" \
-            --output cross-eval/attempt-04-claude-by-codex/outputs/claude-generated.md
-
       - name: Run mock cross-eval session
-        if: ${{ inputs.mock_run }}
         id: cross_eval
         continue-on-error: true
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          args=()
-          if [ "${{ inputs.mock_run }}" = "true" ]; then
-            args+=(--mock)
-          fi
           python3 scripts/run_cross_eval_session.py \
             --scenario "${{ inputs.scenario }}" \
             --output-root cross-eval \
@@ -185,34 +69,14 @@ jobs:
             --codex-model "${{ inputs.codex_model }}" \
             --claude-model "${{ inputs.claude_model }}" \
             --max-attempts "${{ inputs.max_attempts }}" \
-            "${args[@]}"
-
-      - name: Evaluate generated outputs
-        if: ${{ !inputs.mock_run }}
-        id: cross_eval_live
-        continue-on-error: true
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          python3 scripts/run_cross_eval_session.py \
-            --scenario "${{ inputs.scenario }}" \
-            --output-root cross-eval \
-            --junit-xml test-results/cross-eval.junit.xml \
-            --codex-model "${{ inputs.codex_model }}" \
-            --claude-model "${{ inputs.claude_model }}" \
-            --max-attempts "${{ inputs.max_attempts }}" \
-            --use-existing-outputs
+            --mock
 
       - name: Add workflow summary
-        if: ${{ !cancelled() }}
-        run: |
-          if [ -f cross-eval/reports/summary.md ]; then
-            cat cross-eval/reports/summary.md >> "$GITHUB_STEP_SUMMARY"
-          fi
+        if: ${{ !cancelled() && hashFiles('cross-eval/reports/summary.md') != '' }}
+        run: cat cross-eval/reports/summary.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish cross-eval results
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && hashFiles('test-results/cross-eval.junit.xml') != '' }}
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: test-results/cross-eval.junit.xml
@@ -229,5 +93,271 @@ jobs:
             test-results/cross-eval.junit.xml
 
       - name: Fail workflow when cross-eval fails
-        if: steps.cross_eval.outcome == 'failure' || steps.cross_eval_live.outcome == 'failure'
+        if: steps.cross_eval.outcome == 'failure'
+        run: exit 1
+
+  codex-attempt-1:
+    if: ${{ !inputs.mock_run }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify OpenAI secret
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: test -n "$OPENAI_API_KEY"
+
+      - name: Refresh checked-in fixtures
+        run: python3 scripts/render_cross_eval_fixtures.py "${{ inputs.scenario }}"
+
+      - name: Validate supported attempt count
+        run: test "${{ inputs.max_attempts }}" -ge 1 && test "${{ inputs.max_attempts }}" -le 3
+
+      - name: Prepare cross-eval prompts
+        run: |
+          python3 scripts/run_cross_eval_session.py \
+            --scenario "${{ inputs.scenario }}" \
+            --output-root cross-eval \
+            --codex-model "${{ inputs.codex_model }}" \
+            --claude-model "${{ inputs.claude_model }}" \
+            --max-attempts "${{ inputs.max_attempts }}" \
+            --prepare-only
+
+      - name: Attempt 1 generate with Codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: cross-eval/attempt-01-codex-by-claude/prompts/codex-generate.txt
+          output-file: cross-eval/attempt-01-codex-by-claude/outputs/codex-generated.md
+          working-directory: .
+          sandbox: read-only
+          codex-args: --model ${{ inputs.codex_model }}
+
+      - name: Upload attempt 1 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-eval-attempt-01
+          path: cross-eval/attempt-01-codex-by-claude/**
+
+  claude-attempt-2:
+    if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 2 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify Anthropic secret
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: test -n "$ANTHROPIC_API_KEY"
+
+      - name: Refresh checked-in fixtures
+        run: python3 scripts/render_cross_eval_fixtures.py "${{ inputs.scenario }}"
+
+      - name: Prepare cross-eval prompts
+        run: |
+          python3 scripts/run_cross_eval_session.py \
+            --scenario "${{ inputs.scenario }}" \
+            --output-root cross-eval \
+            --codex-model "${{ inputs.codex_model }}" \
+            --claude-model "${{ inputs.claude_model }}" \
+            --max-attempts "${{ inputs.max_attempts }}" \
+            --prepare-only
+
+      - name: Load attempt 2 Claude prompt
+        id: attempt_2_prompt
+        run: |
+          {
+            echo 'prompt<<EOF'
+            cat cross-eval/attempt-02-claude-by-codex/prompts/claude-generate.txt
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Attempt 2 generate with Claude
+        id: attempt_2_claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ github.token }}
+          prompt: ${{ steps.attempt_2_prompt.outputs.prompt }}
+          claude_args: |
+            --model ${{ inputs.claude_model }}
+            --max-turns 8
+
+      - name: Extract attempt 2 Claude output
+        run: |
+          python3 scripts/extract_claude_action_output.py \
+            --input "${{ steps.attempt_2_claude.outputs.execution_file }}" \
+            --output cross-eval/attempt-02-claude-by-codex/outputs/claude-generated.md
+
+      - name: Upload attempt 2 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-eval-attempt-02
+          path: cross-eval/attempt-02-claude-by-codex/**
+
+  codex-attempt-3:
+    if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 3 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify OpenAI secret
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: test -n "$OPENAI_API_KEY"
+
+      - name: Refresh checked-in fixtures
+        run: python3 scripts/render_cross_eval_fixtures.py "${{ inputs.scenario }}"
+
+      - name: Prepare cross-eval prompts
+        run: |
+          python3 scripts/run_cross_eval_session.py \
+            --scenario "${{ inputs.scenario }}" \
+            --output-root cross-eval \
+            --codex-model "${{ inputs.codex_model }}" \
+            --claude-model "${{ inputs.claude_model }}" \
+            --max-attempts "${{ inputs.max_attempts }}" \
+            --prepare-only
+
+      - name: Attempt 3 generate with Codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: cross-eval/attempt-03-codex-by-claude/prompts/codex-generate.txt
+          output-file: cross-eval/attempt-03-codex-by-claude/outputs/codex-generated.md
+          working-directory: .
+          sandbox: read-only
+          codex-args: --model ${{ inputs.codex_model }}
+
+      - name: Upload attempt 3 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-eval-attempt-03
+          path: cross-eval/attempt-03-codex-by-claude/**
+
+  evaluate-cross-eval:
+    if: ${{ !inputs.mock_run }}
+    needs:
+      - codex-attempt-1
+      - claude-attempt-2
+      - codex-attempt-3
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: python3 -m pip install -r requirements.txt
+
+      - name: Verify live-run secrets
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          test -n "$OPENAI_API_KEY"
+          test -n "$ANTHROPIC_API_KEY"
+
+      - name: Refresh checked-in fixtures
+        run: python3 scripts/render_cross_eval_fixtures.py "${{ inputs.scenario }}"
+
+      - name: Prepare cross-eval prompts
+        run: |
+          python3 scripts/run_cross_eval_session.py \
+            --scenario "${{ inputs.scenario }}" \
+            --output-root cross-eval \
+            --codex-model "${{ inputs.codex_model }}" \
+            --claude-model "${{ inputs.claude_model }}" \
+            --max-attempts "${{ inputs.max_attempts }}" \
+            --prepare-only
+
+      - name: Download attempt 1 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cross-eval-attempt-01
+          path: cross-eval/attempt-01-codex-by-claude
+
+      - name: Download attempt 2 artifact
+        if: ${{ fromJSON(inputs.max_attempts) >= 2 }}
+        uses: actions/download-artifact@v4
+        with:
+          name: cross-eval-attempt-02
+          path: cross-eval/attempt-02-claude-by-codex
+
+      - name: Download attempt 3 artifact
+        if: ${{ fromJSON(inputs.max_attempts) >= 3 }}
+        uses: actions/download-artifact@v4
+        with:
+          name: cross-eval-attempt-03
+          path: cross-eval/attempt-03-codex-by-claude
+
+      - name: Evaluate generated outputs
+        id: cross_eval_live
+        continue-on-error: true
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python3 scripts/run_cross_eval_session.py \
+            --scenario "${{ inputs.scenario }}" \
+            --output-root cross-eval \
+            --junit-xml test-results/cross-eval.junit.xml \
+            --codex-model "${{ inputs.codex_model }}" \
+            --claude-model "${{ inputs.claude_model }}" \
+            --max-attempts "${{ inputs.max_attempts }}" \
+            --use-existing-outputs
+
+      - name: Add workflow summary
+        if: ${{ !cancelled() && hashFiles('cross-eval/reports/summary.md') != '' }}
+        run: cat cross-eval/reports/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish cross-eval results
+        if: ${{ !cancelled() && hashFiles('test-results/cross-eval.junit.xml') != '' }}
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: test-results/cross-eval.junit.xml
+          check_name: Cross Eval Results
+          comment_mode: off
+
+      - name: Upload cross-eval artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-eval
+          path: |
+            cross-eval/**
+            test-results/cross-eval.junit.xml
+
+      - name: Fail workflow when cross-eval fails
+        if: steps.cross_eval_live.outcome == 'failure'
         run: exit 1
