@@ -21,6 +21,7 @@ DEFAULT_SCENARIO = ROOT / "evals" / "cross-eval" / "scenarios" / "tier1_leader_s
 DEFAULT_OUTPUT_ROOT = ROOT / "cross-eval"
 DEFAULT_JUNIT_XML = ROOT / "test-results" / "cross-eval.junit.xml"
 SCHEMA_PATH = ROOT / "evals" / "cross-eval" / "judge.schema.json"
+FIXTURE_ROOT = ROOT / "evals" / "cross-eval" / "fixtures"
 
 
 def load_module(path: Path, module_name: str):
@@ -50,93 +51,37 @@ def read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text())
 
 
+def write_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+
+
+def display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
 def command_exists(name: str) -> bool:
     return shutil.which(name) is not None
 
 
-def ensure_parent(path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+def fixture_dir_for_scenario(scenario_id: str) -> Path:
+    return FIXTURE_ROOT / scenario_id
 
 
-def write_text(path: Path, text: str) -> None:
-    ensure_parent(path)
-    path.write_text(text)
+def build_attempt_plan(max_attempts: int) -> list[tuple[str, str]]:
+    sequence = [("codex", "claude"), ("claude", "codex")]
+    plan: list[tuple[str, str]] = []
+    for index in range(max_attempts):
+        plan.append(sequence[index % len(sequence)])
+    return plan
 
 
-def scenario_label(scenario: dict[str, Any]) -> str:
-    return f"{scenario['id']} ({scenario['expected_role']} / tier {scenario['expected_tier']})"
-
-
-def build_generation_prompt(provider: str, scenario: dict[str, Any]) -> str:
-    rubric_lines = "\n".join(f"- {path}" for path in scenario["rubric_paths"])
-    return textwrap.dedent(
-        f"""
-        You are running a repository evaluation for the Daggerheart skill definitions in this checkout.
-
-        Task:
-        - Read `{scenario["skill_path"]}` and the relevant files it references.
-        - Use the repo's conventions as the source of truth.
-        - Handle the user request below exactly as the skill should.
-
-        Scenario:
-        - Scenario id: {scenario["id"]}
-        - Expected tier: {scenario["expected_tier"]}
-        - Expected role: {scenario["expected_role"]}
-        - User request: {scenario["prompt"]}
-
-        Supporting rubric files:
-        {rubric_lines}
-
-        Output requirements:
-        - Return only the final adversary markdown.
-        - Do not wrap the answer in code fences.
-        - Do not explain your reasoning.
-        - Do not modify repository files.
-        - Stay within the role and tier implied by the scenario.
-
-        The provider running this prompt is {provider}.
-        """
-    ).strip() + "\n"
-
-
-def build_judge_prompt(judge: str, candidate_name: str, scenario: dict[str, Any], candidate_output: str) -> str:
-    rubric_lines = "\n".join(f"- {path}" for path in scenario["rubric_paths"])
-    return textwrap.dedent(
-        f"""
-        You are judging a repository eval result for the Daggerheart skill definitions in this checkout.
-
-        Read these files before deciding:
-        - `{scenario["skill_path"]}`
-        {rubric_lines}
-
-        Scenario:
-        - Scenario id: {scenario["id"]}
-        - User request: {scenario["prompt"]}
-        - Expected tier: {scenario["expected_tier"]}
-        - Expected role: {scenario["expected_role"]}
-        - Candidate generator: {candidate_name}
-
-        Candidate output:
-        <<<CANDIDATE_OUTPUT
-        {candidate_output.rstrip()}
-        CANDIDATE_OUTPUT
-
-        Return JSON only with the required schema.
-        Scoring rules:
-        - `pass` should be true only if the output is useful and acceptable for the scenario.
-        - `score` is 1 to 5.
-        - `strengths` and `issues` should each contain short concrete points.
-        - `summary` should be one short paragraph.
-        - `confidence` must be one of low, medium, high.
-
-        The provider running this judge prompt is {judge}.
-        """
-    ).strip() + "\n"
-
-
-def run_command(cmd: list[str], *, cwd: Path, stdout_path: Path, stderr_path: Path, stdin_text: str | None = None, env: dict[str, str] | None = None) -> CommandResult:
-    ensure_parent(stdout_path)
-    ensure_parent(stderr_path)
+def run_command(cmd: list[str], *, cwd: Path, stdout_path: Path, stderr_path: Path, stdin_text: str | None = None) -> CommandResult:
+    stdout_path.parent.mkdir(parents=True, exist_ok=True)
+    stderr_path.parent.mkdir(parents=True, exist_ok=True)
     start = time.perf_counter()
     process = subprocess.run(
         cmd,
@@ -144,7 +89,6 @@ def run_command(cmd: list[str], *, cwd: Path, stdout_path: Path, stderr_path: Pa
         input=stdin_text,
         text=True,
         capture_output=True,
-        env=env,
     )
     duration = time.perf_counter() - start
     stdout_path.write_text(process.stdout)
@@ -160,14 +104,7 @@ def run_command(cmd: list[str], *, cwd: Path, stdout_path: Path, stderr_path: Pa
 
 
 def run_codex(prompt: str, *, model: str, output_path: Path, log_prefix: Path, schema_path: Path | None = None) -> CommandResult:
-    cmd = [
-        "codex",
-        "exec",
-        "--sandbox",
-        "read-only",
-        "--model",
-        model,
-    ]
+    cmd = ["codex", "exec", "--sandbox", "read-only", "--model", model]
     if schema_path is not None:
         cmd.extend(["--output-schema", str(schema_path)])
     cmd.extend(["--output-last-message", str(output_path), "-"])
@@ -177,7 +114,6 @@ def run_codex(prompt: str, *, model: str, output_path: Path, log_prefix: Path, s
         stdout_path=log_prefix.with_suffix(".stdout.txt"),
         stderr_path=log_prefix.with_suffix(".stderr.txt"),
         stdin_text=prompt,
-        env=os.environ.copy(),
     )
 
 
@@ -200,25 +136,55 @@ def run_claude(prompt: str, *, model: str, output_path: Path, log_prefix: Path, 
         cwd=ROOT,
         stdout_path=log_prefix.with_suffix(".stdout.txt"),
         stderr_path=log_prefix.with_suffix(".stderr.txt"),
-        env=os.environ.copy(),
     )
     if result.stdout_path.exists():
         output_path.write_text(result.stdout_path.read_text())
     return result
 
 
-def synthesize_error_output(provider: str, command_result: CommandResult, output_path: Path) -> None:
-    text = textwrap.dedent(
+def build_generation_prompt(skill_path: str, user_request: str) -> str:
+    return textwrap.dedent(
         f"""
-        {provider} run failed.
+        Repository grounding:
+        - Read and use `{skill_path}` and the files it references before answering.
+        - Use that skill as the source of truth for format and content.
+        - Do not use any evaluation criteria, expected role metadata, or sample outputs.
 
-        {command_result.error or "Unknown error"}.
-        See:
-        - stdout: {command_result.stdout_path.relative_to(ROOT)}
-        - stderr: {command_result.stderr_path.relative_to(ROOT)}
+        Respond to this user request exactly as the skill should:
+
+        {user_request.rstrip()}
+
+        Output requirements:
+        - Return only the final answer.
+        - Do not wrap the answer in code fences.
+        - Do not explain your reasoning.
+        - Do not modify repository files.
         """
     ).strip() + "\n"
-    output_path.write_text(text)
+
+
+def build_judge_prompt(*, request_path: Path, properties_path: Path, candidate_name: str, candidate_output: str) -> str:
+    return textwrap.dedent(
+        f"""
+        Judge the candidate output for this repository evaluation.
+
+        Source files to use:
+        - User request: `{display_path(request_path)}`
+        - Verification properties: `{display_path(properties_path)}`
+
+        Read those files before deciding. Use the verification properties as the source of truth for judging.
+        Do not expand the scope by reading the full skill definition unless the verification properties explicitly require it.
+
+        Candidate generator: {candidate_name}
+
+        Candidate output:
+        <<<CANDIDATE_OUTPUT
+        {candidate_output.rstrip()}
+        CANDIDATE_OUTPUT
+
+        Return JSON only with the required schema.
+        """
+    ).strip() + "\n"
 
 
 def parse_structured_json(text: str) -> dict[str, Any]:
@@ -234,195 +200,319 @@ def parse_structured_json(text: str) -> dict[str, Any]:
     return json.loads(stripped[start : end + 1])
 
 
-def write_failure_judge_payload(path: Path, summary: str, issue: str) -> None:
-    path.write_text(
-        json.dumps(
-            {
-                "pass": False,
-                "score": 1,
-                "summary": summary,
-                "strengths": [],
-                "issues": [issue],
-                "confidence": "low",
-            },
-            indent=2,
-        )
-        + "\n"
-    )
+def failure_judge_payload(summary: str, issue: str) -> dict[str, Any]:
+    return {
+        "pass": False,
+        "score": 1,
+        "summary": summary,
+        "strengths": [],
+        "issues": [issue],
+        "confidence": "low",
+    }
 
 
-def validate_candidate(text: str, scenario: dict[str, Any]) -> tuple[list[str], list[str]]:
+def load_judge_payload(path: Path, fallback_summary: str) -> dict[str, Any]:
+    try:
+        return parse_structured_json(path.read_text())
+    except Exception as exc:
+        payload = failure_judge_payload(fallback_summary, str(exc))
+        path.write_text(json.dumps(payload, indent=2) + "\n")
+        return payload
+
+
+def validate_candidate(text: str, properties: dict[str, Any]) -> tuple[list[str], list[str]]:
     return VALIDATOR_MODULE.validate_output(
         text,
-        expected_tier=scenario["expected_tier"],
-        expected_role=scenario["expected_role"],
+        expected_tier=properties["expected_tier"],
+        expected_role=properties["expected_role"],
     )
+
+
+def materialize_mock_generation(sample_path: Path, output_path: Path) -> None:
+    output_path.write_text(sample_path.read_text())
+
+
+def materialize_mock_judge(output_path: Path, *, pass_value: bool) -> dict[str, Any]:
+    payload = {
+        "pass": pass_value,
+        "score": 4 if pass_value else 2,
+        "summary": "Mock judge accepted the output." if pass_value else "Mock judge rejected the output.",
+        "strengths": ["Fixture output matches the expected adversary structure."] if pass_value else [],
+        "issues": [] if pass_value else ["Injected mock failure for fail-fast verification."],
+        "confidence": "medium",
+    }
+    output_path.write_text(json.dumps(payload, indent=2) + "\n")
+    return payload
 
 
 def write_junit_xml(path: Path, report: dict[str, Any]) -> None:
     testsuites = ET.Element("testsuites")
-    suites: dict[str, list[dict[str, Any]]] = {
-        "cross-eval-deterministic": report["deterministic"],
-        "cross-eval-judges": report["judges"],
-    }
+    suite_specs = [
+        ("cross-eval-deterministic", "deterministic"),
+        ("cross-eval-judges", "judge"),
+    ]
 
-    for suite_name, entries in suites.items():
+    for suite_name, key in suite_specs:
+        entries = [attempt[key] for attempt in report["attempts"]]
+        skipped = sum(1 for entry in entries if entry.get("status") == "not_run")
+        failures = sum(1 for entry in entries if entry.get("status") != "not_run" and not entry["pass"])
         suite = ET.SubElement(
             testsuites,
             "testsuite",
             name=suite_name,
             tests=str(len(entries)),
-            failures=str(sum(1 for entry in entries if not entry["pass"])),
+            failures=str(failures),
             errors="0",
-            skipped="0",
+            skipped=str(skipped),
             time="0.0",
         )
-        for entry in entries:
+        for attempt, entry in zip(report["attempts"], entries):
             case = ET.SubElement(
                 suite,
                 "testcase",
                 classname=suite_name,
-                name=entry["name"],
+                name=f"attempt-{attempt['attempt']:02d}-{attempt['generator']}",
                 time="0.0",
             )
-            if not entry["pass"]:
+            if entry.get("status") == "not_run":
+                skipped_node = ET.SubElement(case, "skipped", message=entry["message"])
+                skipped_node.text = entry["message"]
+            elif not entry["pass"]:
                 failure = ET.SubElement(case, "failure", message=entry["message"].splitlines()[0])
                 failure.text = entry["message"]
             if entry.get("details"):
                 system_out = ET.SubElement(case, "system-out")
                 system_out.text = entry["details"]
 
-    ensure_parent(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
     ET.ElementTree(testsuites).write(path, encoding="utf-8", xml_declaration=True)
 
 
-def build_report(scenario: dict[str, Any], paths: dict[str, Path]) -> dict[str, Any]:
-    generated = {
-        "codex": paths["codex_generated"].read_text().strip(),
-        "claude": paths["claude_generated"].read_text().strip(),
-    }
-    judge_payloads = {
-        "claude_on_codex": parse_structured_json(paths["claude_judge_codex"].read_text()),
-        "codex_on_claude": parse_structured_json(paths["codex_judge_claude"].read_text()),
-    }
-
-    deterministic: list[dict[str, Any]] = []
-    judges: list[dict[str, Any]] = []
-    lanes: list[dict[str, Any]] = []
-
-    for provider, text in generated.items():
-        errors, warnings = validate_candidate(text, scenario)
-        deterministic.append(
-            {
-                "name": f"{provider}-generation",
-                "pass": not errors,
-                "message": "Deterministic validation passed" if not errors else "\n".join(errors),
-                "details": "\n".join(f"warning: {warning}" for warning in warnings),
-            }
-        )
-
-    judge_map = {
-        "codex": ("claude_on_codex", "Claude"),
-        "claude": ("codex_on_claude", "Codex"),
-    }
-    deterministic_map = {entry["name"].split("-")[0]: entry for entry in deterministic}
-
-    for provider, (judge_key, judge_name) in judge_map.items():
-        judge = judge_payloads[judge_key]
-        judges.append(
-            {
-                "name": f"{provider}-judged-by-{judge_name.lower()}",
-                "pass": bool(judge["pass"]),
-                "message": judge["summary"] if judge["pass"] else "\n".join([judge["summary"], *judge.get("issues", [])]),
-                "details": "\n".join(judge.get("strengths", [])),
-            }
-        )
-        lanes.append(
-            {
-                "generator": provider,
-                "judge": judge_name,
-                "deterministic_pass": deterministic_map[provider]["pass"],
-                "judge_pass": bool(judge["pass"]),
-                "judge_score": judge["score"],
-                "confidence": judge["confidence"],
-                "summary": judge["summary"],
-                "issues": judge.get("issues", []),
-                "strengths": judge.get("strengths", []),
-                "overall_pass": deterministic_map[provider]["pass"] and bool(judge["pass"]),
-            }
-        )
-
-    overall_pass = all(entry["pass"] for entry in deterministic) and all(entry["pass"] for entry in judges)
-    return {
-        "scenario": scenario,
-        "overall_pass": overall_pass,
-        "deterministic": deterministic,
-        "judges": judges,
-        "lanes": lanes,
-    }
-
-
 def write_summary(path: Path, report: dict[str, Any]) -> None:
-    scenario = report["scenario"]
     lines = [
-        f"# Cross-Eval Summary",
+        "# Cross-Eval Summary",
         "",
-        f"- Scenario: `{scenario['id']}`",
-        f"- Prompt: {scenario['prompt']}",
-        f"- Expected: tier {scenario['expected_tier']} / {scenario['expected_role']}",
+        f"- Scenario: `{report['scenario']['id']}`",
+        f"- Requested attempts: `{report['requested_attempts']}`",
+        f"- Executed attempts: `{len(report['attempts'])}`",
         f"- Overall pass: `{'yes' if report['overall_pass'] else 'no'}`",
+        f"- Stop reason: `{report['stop_reason']}`",
+        f"- User request fixture: `{report['request_path']}`",
+        f"- Verification properties: `{report['properties_path']}`",
         "",
-        "| Generator | Judge | Deterministic | Judge | Score | Overall |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "| Attempt | Generator | Judge | Deterministic | Judge | Overall | Stop reason |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
     ]
-    for lane in report["lanes"]:
+    for attempt in report["attempts"]:
         lines.append(
-            "| {generator} | {judge} | {deterministic_pass} | {judge_pass} | {judge_score} | {overall_pass} |".format(
-                generator=lane["generator"],
-                judge=lane["judge"],
-                deterministic_pass="pass" if lane["deterministic_pass"] else "fail",
-                judge_pass="pass" if lane["judge_pass"] else "fail",
-                judge_score=lane["judge_score"],
-                overall_pass="pass" if lane["overall_pass"] else "fail",
+            "| {attempt} | {generator} | {judge} | {det} | {judge_status} | {overall} | {stop_reason} |".format(
+                attempt=attempt["attempt"],
+                generator=attempt["generator"],
+                judge=attempt["judge_provider"],
+                det="pass" if attempt["deterministic"]["pass"] else "fail",
+                judge_status="skipped" if attempt["judge"]["status"] == "not_run" else ("pass" if attempt["judge"]["pass"] else "fail"),
+                overall="pass" if attempt["overall_pass"] else "fail",
+                stop_reason=attempt["stop_reason"] or "",
             )
         )
     lines.append("")
-    for lane in report["lanes"]:
-        lines.append(f"## {lane['generator'].title()} generated, {lane['judge']} judged")
+
+    for attempt in report["attempts"]:
+        lines.append(f"## Attempt {attempt['attempt']}: {attempt['generator']} generated, {attempt['judge_provider']} judged")
         lines.append("")
-        lines.append(lane["summary"])
-        if lane["strengths"]:
-            lines.append("")
-            lines.append("Strengths:")
-            lines.extend(f"- {item}" for item in lane["strengths"])
-        if lane["issues"]:
-            lines.append("")
-            lines.append("Issues:")
-            lines.extend(f"- {item}" for item in lane["issues"])
+        lines.append(f"- Prompt source: `{attempt['generation_prompt_path']}`")
+        lines.append(f"- Output file: `{attempt['generated_output_path']}`")
+        lines.append(f"- Deterministic result: `{'pass' if attempt['deterministic']['pass'] else 'fail'}`")
+        if attempt["deterministic"]["warnings"]:
+            lines.append("- Warnings:")
+            lines.extend(f"  - {warning}" for warning in attempt["deterministic"]["warnings"])
+        if attempt["deterministic"]["errors"]:
+            lines.append("- Errors:")
+            lines.extend(f"  - {error}" for error in attempt["deterministic"]["errors"])
+        lines.append(f"- Judge result: `{attempt['judge']['status']}`")
+        if attempt["judge"].get("summary"):
+            lines.append(f"- Judge summary: {attempt['judge']['summary']}")
+        if attempt["judge"].get("issues"):
+            lines.append("- Judge issues:")
+            lines.extend(f"  - {issue}" for issue in attempt["judge"]["issues"])
+        if attempt["judge"].get("strengths"):
+            lines.append("- Judge strengths:")
+            lines.extend(f"  - {strength}" for strength in attempt["judge"]["strengths"])
         lines.append("")
+
     write_text(path, "\n".join(lines).rstrip() + "\n")
 
 
-def materialize_mock_outputs(scenario: dict[str, Any], paths: dict[str, Path]) -> None:
-    sample_rel = scenario.get("sample_output")
-    if not sample_rel:
-        raise ValueError("Mock mode requires scenario.sample_output")
-    sample_text = (ROOT / sample_rel).read_text()
-    paths["codex_generated"].write_text(sample_text)
-    paths["claude_generated"].write_text(sample_text)
-    canned = {
-        "pass": True,
-        "score": 4,
-        "summary": "The output matches the repository format and is serviceable for the scenario.",
-        "strengths": [
-            "It follows the expected adversary structure.",
-            "The tier and role fit the scenario."
-        ],
-        "issues": [],
-        "confidence": "medium"
+def run_attempt(
+    *,
+    attempt_number: int,
+    generator: str,
+    judge_provider: str,
+    scenario: dict[str, Any],
+    properties: dict[str, Any],
+    request_path: Path,
+    properties_path: Path,
+    request_text: str,
+    output_root: Path,
+    codex_model: str,
+    claude_model: str,
+    mock: bool,
+    mock_fail_attempt: int | None,
+) -> dict[str, Any]:
+    attempt_dir = output_root / f"attempt-{attempt_number:02d}-{generator}-by-{judge_provider}"
+    inputs_dir = attempt_dir / "inputs"
+    prompts_dir = attempt_dir / "prompts"
+    outputs_dir = attempt_dir / "outputs"
+    reports_dir = attempt_dir / "reports"
+    for directory in [inputs_dir, prompts_dir, outputs_dir, reports_dir]:
+        directory.mkdir(parents=True, exist_ok=True)
+
+    copied_request_path = inputs_dir / "user-request.txt"
+    copied_properties_path = inputs_dir / "verification-properties.json"
+    shutil.copyfile(request_path, copied_request_path)
+    shutil.copyfile(properties_path, copied_properties_path)
+
+    generation_prompt_path = prompts_dir / f"{generator}-generate.txt"
+    generated_output_path = outputs_dir / f"{generator}-generated.md"
+    judge_prompt_path = prompts_dir / f"{judge_provider}-judge-{generator}.txt"
+    judge_output_path = outputs_dir / f"{judge_provider}-judge-{generator}.json"
+
+    generation_prompt = build_generation_prompt(properties["skill_access"]["skill_path"], request_text)
+    write_text(generation_prompt_path, generation_prompt)
+
+    if mock:
+        materialize_mock_generation(ROOT / scenario["sample_output"], generated_output_path)
+        generation_result = None
+    else:
+        if generator == "codex":
+            generation_result = run_codex(
+                generation_prompt,
+                model=codex_model,
+                output_path=generated_output_path,
+                log_prefix=outputs_dir / f"{generator}-generate",
+            )
+        else:
+            generation_result = run_claude(
+                generation_prompt,
+                model=claude_model,
+                output_path=generated_output_path,
+                log_prefix=outputs_dir / f"{generator}-generate",
+            )
+        if generation_result is not None and not generation_result.ok and not generated_output_path.exists():
+            generated_output_path.write_text(
+                textwrap.dedent(
+                    f"""
+                    {generator} generation failed.
+
+                    {generation_result.error or "Unknown error"}.
+                    See:
+                    - stdout: {display_path(generation_result.stdout_path)}
+                    - stderr: {display_path(generation_result.stderr_path)}
+                    """
+                ).strip()
+                + "\n"
+            )
+
+    generated_text = generated_output_path.read_text()
+    errors, warnings = validate_candidate(generated_text, properties)
+    deterministic = {
+        "status": "passed" if not errors else "failed",
+        "pass": not errors,
+        "errors": errors,
+        "warnings": warnings,
+        "message": "Deterministic validation passed" if not errors else "\n".join(errors),
+        "details": "\n".join(f"warning: {warning}" for warning in warnings),
     }
-    paths["claude_judge_codex"].write_text(json.dumps(canned, indent=2) + "\n")
-    paths["codex_judge_claude"].write_text(json.dumps(canned, indent=2) + "\n")
+
+    judge_result: dict[str, Any]
+    stop_reason: str | None = None
+    overall_pass = False
+
+    if not deterministic["pass"]:
+        judge_result = {
+            "status": "not_run",
+            "pass": False,
+            "summary": "",
+            "issues": [],
+            "strengths": [],
+            "message": "Judge not run because deterministic validation failed.",
+            "details": "",
+        }
+        stop_reason = "deterministic_validation_failed"
+        overall_pass = False
+    else:
+        judge_prompt = build_judge_prompt(
+            request_path=copied_request_path,
+            properties_path=copied_properties_path,
+            candidate_name=generator,
+            candidate_output=generated_text,
+        )
+        write_text(judge_prompt_path, judge_prompt)
+
+        if mock:
+            judge_payload = materialize_mock_judge(
+                judge_output_path,
+                pass_value=mock_fail_attempt != attempt_number,
+            )
+        else:
+            if judge_provider == "claude":
+                judge_command = run_claude(
+                    judge_prompt,
+                    model=claude_model,
+                    output_path=judge_output_path,
+                    log_prefix=outputs_dir / f"{judge_provider}-judge-{generator}",
+                    schema_text=SCHEMA_PATH.read_text(),
+                )
+            else:
+                judge_command = run_codex(
+                    judge_prompt,
+                    model=codex_model,
+                    output_path=judge_output_path,
+                    log_prefix=outputs_dir / f"{judge_provider}-judge-{generator}",
+                    schema_path=SCHEMA_PATH,
+                )
+            if not judge_command.ok:
+                write_text(
+                    judge_output_path,
+                    json.dumps(
+                        failure_judge_payload(
+                            f"{judge_provider.title()} judge execution failed.",
+                            judge_command.error or "Unknown judge error",
+                        ),
+                        indent=2,
+                    )
+                    + "\n",
+                )
+            judge_payload = load_judge_payload(judge_output_path, f"{judge_provider.title()} judge output was invalid.")
+
+        judge_result = {
+            "status": "passed" if judge_payload["pass"] else "failed",
+            "pass": bool(judge_payload["pass"]),
+            "score": judge_payload["score"],
+            "summary": judge_payload["summary"],
+            "issues": judge_payload.get("issues", []),
+            "strengths": judge_payload.get("strengths", []),
+            "confidence": judge_payload["confidence"],
+            "message": judge_payload["summary"] if judge_payload["pass"] else "\n".join([judge_payload["summary"], *judge_payload.get("issues", [])]),
+            "details": "\n".join(judge_payload.get("strengths", [])),
+        }
+        overall_pass = deterministic["pass"] and judge_result["pass"]
+        if not judge_result["pass"]:
+            stop_reason = "judge_failed"
+
+    attempt_report = {
+        "attempt": attempt_number,
+        "generator": generator,
+        "judge_provider": judge_provider,
+        "generation_prompt_path": display_path(generation_prompt_path),
+        "generated_output_path": display_path(generated_output_path),
+        "deterministic": deterministic,
+        "judge": judge_result,
+        "overall_pass": overall_pass,
+        "stop_reason": stop_reason,
+    }
+    write_text(reports_dir / "attempt.json", json.dumps(attempt_report, indent=2) + "\n")
+    return attempt_report
 
 
 def main() -> int:
@@ -432,36 +522,30 @@ def main() -> int:
     parser.add_argument("--junit-xml", type=Path, default=DEFAULT_JUNIT_XML)
     parser.add_argument("--codex-model", default="gpt-5-codex")
     parser.add_argument("--claude-model", default="claude-sonnet-4-20250514")
+    parser.add_argument("--max-attempts", type=int)
     parser.add_argument("--mock", action="store_true")
+    parser.add_argument("--mock-fail-attempt", type=int)
     args = parser.parse_args()
 
     scenario = read_json(args.scenario)
+    fixture_dir = fixture_dir_for_scenario(scenario["id"])
+    request_path = fixture_dir / "user-request.txt"
+    properties_path = fixture_dir / "verification-properties.json"
+    if not request_path.exists() or not properties_path.exists():
+        raise SystemExit(
+            f"Missing checked-in fixtures for {scenario['id']}. Run `python3 scripts/render_cross_eval_fixtures.py {args.scenario}` first."
+        )
+
+    request_text = request_path.read_text().strip() + "\n"
+    properties = read_json(properties_path)
     output_root = args.output_root
-    prompts_dir = output_root / "prompts"
-    outputs_dir = output_root / "outputs"
-    reports_dir = output_root / "reports"
-    for directory in [prompts_dir, outputs_dir, reports_dir]:
-        directory.mkdir(parents=True, exist_ok=True)
+    output_root.mkdir(parents=True, exist_ok=True)
 
-    paths = {
-        "codex_generate_prompt": prompts_dir / "codex-generate.txt",
-        "claude_generate_prompt": prompts_dir / "claude-generate.txt",
-        "claude_judge_prompt": prompts_dir / "claude-judge-codex.txt",
-        "codex_judge_prompt": prompts_dir / "codex-judge-claude.txt",
-        "codex_generated": outputs_dir / "codex-generated.md",
-        "claude_generated": outputs_dir / "claude-generated.md",
-        "claude_judge_codex": outputs_dir / "claude-judge-codex.json",
-        "codex_judge_claude": outputs_dir / "codex-judge-claude.json",
-        "report_json": reports_dir / "cross-eval.json",
-        "summary_md": reports_dir / "summary.md",
-    }
+    requested_attempts = args.max_attempts or int(scenario.get("max_attempts", 3))
+    if requested_attempts < 1:
+        raise SystemExit("--max-attempts must be at least 1.")
 
-    write_text(paths["codex_generate_prompt"], build_generation_prompt("Codex", scenario))
-    write_text(paths["claude_generate_prompt"], build_generation_prompt("Claude", scenario))
-
-    if args.mock:
-        materialize_mock_outputs(scenario, paths)
-    else:
+    if not args.mock:
         if not command_exists("codex"):
             raise SystemExit("`codex` is not available on PATH.")
         if not command_exists("claude"):
@@ -471,70 +555,55 @@ def main() -> int:
         if not os.environ.get("ANTHROPIC_API_KEY"):
             raise SystemExit("ANTHROPIC_API_KEY is required for live runs.")
 
-        codex_result = run_codex(
-            paths["codex_generate_prompt"].read_text(),
-            model=args.codex_model,
-            output_path=paths["codex_generated"],
-            log_prefix=outputs_dir / "codex-generate",
+    attempts: list[dict[str, Any]] = []
+    stop_reason = "completed_requested_attempts"
+
+    for attempt_number, (generator, judge_provider) in enumerate(build_attempt_plan(requested_attempts), start=1):
+        attempt_report = run_attempt(
+            attempt_number=attempt_number,
+            generator=generator,
+            judge_provider=judge_provider,
+            scenario=scenario,
+            properties=properties,
+            request_path=request_path,
+            properties_path=properties_path,
+            request_text=request_text,
+            output_root=output_root,
+            codex_model=args.codex_model,
+            claude_model=args.claude_model,
+            mock=args.mock,
+            mock_fail_attempt=args.mock_fail_attempt,
         )
-        if not codex_result.ok and not paths["codex_generated"].exists():
-            synthesize_error_output("Codex generation", codex_result, paths["codex_generated"])
+        attempts.append(attempt_report)
+        if not attempt_report["overall_pass"]:
+            stop_reason = attempt_report["stop_reason"] or "attempt_failed"
+            break
 
-        claude_result = run_claude(
-            paths["claude_generate_prompt"].read_text(),
-            model=args.claude_model,
-            output_path=paths["claude_generated"],
-            log_prefix=outputs_dir / "claude-generate",
-        )
-        if not claude_result.ok and not paths["claude_generated"].exists():
-            synthesize_error_output("Claude generation", claude_result, paths["claude_generated"])
+    report = {
+        "scenario": {
+            "id": scenario["id"],
+            "suite": scenario["suite"],
+            "skill_path": scenario["skill_path"],
+        },
+        "request_path": display_path(request_path),
+        "properties_path": display_path(properties_path),
+        "requested_attempts": requested_attempts,
+        "stop_reason": stop_reason,
+        "overall_pass": all(attempt["overall_pass"] for attempt in attempts),
+        "attempts": attempts,
+    }
 
-    write_text(
-        paths["claude_judge_prompt"],
-        build_judge_prompt("Claude", "Codex", scenario, paths["codex_generated"].read_text()),
-    )
-    write_text(
-        paths["codex_judge_prompt"],
-        build_judge_prompt("Codex", "Claude", scenario, paths["claude_generated"].read_text()),
-    )
-
-    if not args.mock:
-        claude_judge_result = run_claude(
-            paths["claude_judge_prompt"].read_text(),
-            model=args.claude_model,
-            output_path=paths["claude_judge_codex"],
-            log_prefix=outputs_dir / "claude-judge-codex",
-            schema_text=SCHEMA_PATH.read_text(),
-        )
-        if not claude_judge_result.ok:
-            write_failure_judge_payload(
-                paths["claude_judge_codex"],
-                "Claude judge execution failed.",
-                claude_judge_result.error or "Unknown Claude judge error",
-            )
-
-        codex_judge_result = run_codex(
-            paths["codex_judge_prompt"].read_text(),
-            model=args.codex_model,
-            output_path=paths["codex_judge_claude"],
-            log_prefix=outputs_dir / "codex-judge-claude",
-            schema_path=SCHEMA_PATH,
-        )
-        if not codex_judge_result.ok:
-            write_failure_judge_payload(
-                paths["codex_judge_claude"],
-                "Codex judge execution failed.",
-                codex_judge_result.error or "Unknown Codex judge error",
-            )
-
-    report = build_report(scenario, paths)
-    write_text(paths["report_json"], json.dumps(report, indent=2) + "\n")
-    write_summary(paths["summary_md"], report)
+    reports_dir = output_root / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    write_text(reports_dir / "cross-eval.json", json.dumps(report, indent=2) + "\n")
+    write_summary(reports_dir / "summary.md", report)
     write_junit_xml(args.junit_xml, report)
 
-    print(f"Scenario: {scenario_label(scenario)}")
-    print(f"Summary: {paths['summary_md']}")
-    print(f"JUnit: {args.junit_xml}")
+    print(f"Scenario: {scenario['id']}")
+    print(f"Request fixture: {request_path}")
+    print(f"Verification properties: {properties_path}")
+    print(f"Executed attempts: {len(attempts)} / {requested_attempts}")
+    print(f"Stop reason: {stop_reason}")
     print(f"Overall pass: {'yes' if report['overall_pass'] else 'no'}")
     return 0 if report["overall_pass"] else 1
 

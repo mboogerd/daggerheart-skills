@@ -18,6 +18,11 @@ on:
         required: true
         default: "claude-sonnet-4-20250514"
         type: string
+      max_attempts:
+        description: "Maximum alternating attempts before success"
+        required: true
+        default: "3"
+        type: string
       mock_run:
         description: "Use fixture output instead of live model calls"
         required: true
@@ -64,6 +69,9 @@ jobs:
           test -n "$OPENAI_API_KEY"
           test -n "$ANTHROPIC_API_KEY"
 
+      - name: Refresh checked-in fixtures
+        run: python3 scripts/render_cross_eval_fixtures.py "${{ inputs.scenario }}"
+
       - name: Run cross-eval session
         id: cross_eval
         continue-on-error: true
@@ -81,6 +89,7 @@ jobs:
             --junit-xml test-results/cross-eval.junit.xml \
             --codex-model "${{ inputs.codex_model }}" \
             --claude-model "${{ inputs.claude_model }}" \
+            --max-attempts "${{ inputs.max_attempts }}" \
             "${args[@]}"
 
       - name: Add workflow summary

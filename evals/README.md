@@ -43,9 +43,11 @@ For adversary creation, also use:
 
 Use `evals/cross-eval/` for agent-vs-agent evaluations that:
 
-- run the same scenario through multiple coding agents
+- use checked-in user-request fixtures for generation
+- use checked-in verification properties for judging
 - validate the generated output deterministically
-- ask the opposite agent to judge the result
+- alternate generator and judge roles across attempts
+- stop early on the first failure
 - emit JUnit so GitHub Actions can publish the run as a check
 
 Local smoke test:

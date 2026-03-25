@@ -1,0 +1,71 @@
+{
+  "scenario_id": "tier1_leader_smoke",
+  "suite": "adversary-creation",
+  "validator": "adversary-creation",
+  "skill_access": {
+    "skill_path": "daggerheart-adversary-creation/SKILL.md",
+    "references_dir": "daggerheart-adversary-creation/references"
+  },
+  "expected_role": "leader",
+  "expected_tier": 1,
+  "required_fields": [
+    "name",
+    "tier",
+    "type",
+    "description",
+    "motives and tactics",
+    "difficulty",
+    "thresholds",
+    "hp",
+    "stress",
+    "atk",
+    "standard attack",
+    "features"
+  ],
+  "feature_count": {
+    "min": 1,
+    "max": 3
+  },
+  "safe_band": {
+    "difficulty": [
+      13,
+      15
+    ],
+    "thresholds": [
+      [
+        7,
+        9
+      ],
+      [
+        13,
+        14
+      ]
+    ],
+    "hp": [
+      6,
+      7
+    ],
+    "stress": [
+      3,
+      4
+    ],
+    "atk": [
+      3,
+      4
+    ],
+    "fixed_damage": null,
+    "damage_avg": [
+      7.5,
+      9.5
+    ]
+  },
+  "role_specific_expectations": [
+    "Include at least one ally-facing, command, rally, spotlight, reinforcement, or summon feature."
+  ],
+  "judge_focus": [
+    "Check that the output follows the required structure and field set.",
+    "Check that the tier and role match the expected scenario.",
+    "Check that numbers and features fit the stated role and battlefield job.",
+    "Flag overloaded, generic, or weak feature design."
+  ]
+}
