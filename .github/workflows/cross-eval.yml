@@ -1,0 +1,109 @@
+name: Cross Eval
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: "Scenario file under evals/cross-eval/scenarios/"
+        required: true
+        default: "evals/cross-eval/scenarios/tier1_leader_smoke.json"
+        type: string
+      codex_model:
+        description: "Codex model"
+        required: true
+        default: "gpt-5-codex"
+        type: string
+      claude_model:
+        description: "Claude model"
+        required: true
+        default: "claude-sonnet-4-20250514"
+        type: string
+      mock_run:
+        description: "Use fixture output instead of live model calls"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  cross-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Codex CLI
+        if: ${{ !inputs.mock_run }}
+        run: npm install -g @openai/codex
+
+      - name: Install Claude Code CLI
+        if: ${{ !inputs.mock_run }}
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Verify live-run secrets
+        if: ${{ !inputs.mock_run }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          test -n "$OPENAI_API_KEY"
+          test -n "$ANTHROPIC_API_KEY"
+
+      - name: Run cross-eval session
+        id: cross_eval
+        continue-on-error: true
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          args=()
+          if [ "${{ inputs.mock_run }}" = "true" ]; then
+            args+=(--mock)
+          fi
+          python3 scripts/run_cross_eval_session.py \
+            --scenario "${{ inputs.scenario }}" \
+            --output-root cross-eval \
+            --junit-xml test-results/cross-eval.junit.xml \
+            --codex-model "${{ inputs.codex_model }}" \
+            --claude-model "${{ inputs.claude_model }}" \
+            "${args[@]}"
+
+      - name: Add workflow summary
+        if: ${{ !cancelled() }}
+        run: cat cross-eval/reports/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish cross-eval results
+        if: ${{ !cancelled() }}
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: test-results/cross-eval.junit.xml
+          check_name: Cross Eval Results
+          comment_mode: off
+
+      - name: Upload cross-eval artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-eval
+          path: |
+            cross-eval/**
+            test-results/cross-eval.junit.xml
+
+      - name: Fail workflow when cross-eval fails
+        if: steps.cross_eval.outcome == 'failure'
+        run: exit 1

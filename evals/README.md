@@ -38,3 +38,16 @@ For adversary creation, also use:
 
 - `scripts/validate-adversary-creation.py --case-file skills/evals/adversary-creation.output-cases.json`
 - `scripts/validate-adversary-creation.py <markdown-file>`
+
+## Cross-Eval
+
+Use `evals/cross-eval/` for agent-vs-agent evaluations that:
+
+- run the same scenario through multiple coding agents
+- validate the generated output deterministically
+- ask the opposite agent to judge the result
+- emit JUnit so GitHub Actions can publish the run as a check
+
+Local smoke test:
+
+- `python3 scripts/run_cross_eval_session.py --mock`

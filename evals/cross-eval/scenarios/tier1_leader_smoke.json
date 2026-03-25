@@ -1,0 +1,13 @@
+{
+  "id": "tier1_leader_smoke",
+  "suite": "adversary-creation",
+  "skill_path": "daggerheart-adversary-creation/SKILL.md",
+  "prompt": "Create a tier 1 leader for a disciplined militia faction.",
+  "expected_tier": 1,
+  "expected_role": "leader",
+  "sample_output": "evals/adversary-creation/samples/pass-tier1-leader.md",
+  "rubric_paths": [
+    "evals/output-rubric.md",
+    "evals/adversary-creation-rubric.md"
+  ]
+}
