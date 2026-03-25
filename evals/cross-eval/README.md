@@ -22,6 +22,20 @@ Checked-in fixtures under `fixtures/<scenario-id>/` hold:
 
 - `user-request.txt`: the exact user request sent for generation
 - `verification-properties.json`: the distilled verification properties used by the judge
+- `verification-properties.schema.json`: the contract for the verification properties format
+
+The verification properties use explicit bound objects for numeric bands, for example:
+
+```json
+{
+  "difficulty": {
+    "lower_bound": 13,
+    "upper_bound": 15
+  }
+}
+```
+
+Threshold bands are named explicitly as `first_threshold` and `second_threshold`.
 
 Generate or refresh those fixtures with:
 
@@ -34,7 +48,7 @@ python3 scripts/render_cross_eval_fixtures.py
 Use mock mode first to verify the pipeline without calling model APIs:
 
 ```bash
-scripts/run_cross_eval_local.sh mock
+bash scripts/run_cross_eval_local.sh mock
 ```
 
 That writes per-attempt prompts, outputs, JSON reports, a markdown summary, and JUnit XML under `cross-eval/`.
@@ -44,7 +58,7 @@ That writes per-attempt prompts, outputs, JSON reports, a markdown summary, and 
 After exporting `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`, run:
 
 ```bash
-scripts/run_cross_eval_local.sh
+bash scripts/run_cross_eval_local.sh
 ```
 
 Useful options:
@@ -59,7 +73,7 @@ If you want to mirror the split GitHub Actions flow locally:
 1. Prepare prompts only:
 
 ```bash
-scripts/run_cross_eval_local.sh prepare --output-root /tmp/cross-eval-local
+bash scripts/run_cross_eval_local.sh prepare --output-root /tmp/cross-eval-local
 ```
 
 2. Generate outputs however you want into the prepared `attempt-*` folders.
@@ -67,5 +81,5 @@ scripts/run_cross_eval_local.sh prepare --output-root /tmp/cross-eval-local
 3. Evaluate those existing outputs:
 
 ```bash
-scripts/run_cross_eval_local.sh evaluate --output-root /tmp/cross-eval-local
+bash scripts/run_cross_eval_local.sh evaluate --output-root /tmp/cross-eval-local
 ```

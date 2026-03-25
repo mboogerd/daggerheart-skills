@@ -27,37 +27,37 @@
     "max": 3
   },
   "safe_band": {
-    "difficulty": [
-      13,
-      15
-    ],
-    "thresholds": [
-      [
-        7,
-        9
-      ],
-      [
-        13,
-        14
-      ]
-    ],
-    "hp": [
-      6,
-      7
-    ],
-    "stress": [
-      3,
-      4
-    ],
-    "atk": [
-      3,
-      4
-    ],
+    "difficulty": {
+      "lower_bound": 13,
+      "upper_bound": 15
+    },
+    "thresholds": {
+      "first_threshold": {
+        "lower_bound": 7,
+        "upper_bound": 9
+      },
+      "second_threshold": {
+        "lower_bound": 13,
+        "upper_bound": 14
+      }
+    },
+    "hp": {
+      "lower_bound": 6,
+      "upper_bound": 7
+    },
+    "stress": {
+      "lower_bound": 3,
+      "upper_bound": 4
+    },
+    "atk": {
+      "lower_bound": 3,
+      "upper_bound": 4
+    },
     "fixed_damage": null,
-    "damage_avg": [
-      7.5,
-      9.5
-    ]
+    "damage_avg": {
+      "lower_bound": 7.5,
+      "upper_bound": 9.5
+    }
   },
   "role_specific_expectations": [
     "Include at least one ally-facing, command, rally, spotlight, reinforcement, or summon feature."

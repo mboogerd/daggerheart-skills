@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from cross_eval_models import load_verification_properties
+
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SCENARIO = ROOT / "evals" / "cross-eval" / "scenarios" / "tier1_leader_smoke.json"
@@ -586,7 +588,7 @@ def main() -> int:
         )
 
     request_text = request_path.read_text().strip() + "\n"
-    properties = read_json(properties_path)
+    properties = load_verification_properties(properties_path)
     output_root = args.output_root
     output_root.mkdir(parents=True, exist_ok=True)
 

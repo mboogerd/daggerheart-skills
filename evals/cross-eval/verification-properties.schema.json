@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "scenario_id",
+    "suite",
+    "validator",
+    "skill_access",
+    "expected_role",
+    "expected_tier",
+    "required_fields",
+    "feature_count",
+    "safe_band",
+    "role_specific_expectations",
+    "judge_focus"
+  ],
+  "properties": {
+    "scenario_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "suite": {
+      "type": "string",
+      "minLength": 1
+    },
+    "validator": {
+      "type": "string",
+      "minLength": 1
+    },
+    "skill_access": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "skill_path",
+        "references_dir"
+      ],
+      "properties": {
+        "skill_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "references_dir": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "expected_role": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expected_tier": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "required_fields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "feature_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "min",
+        "max"
+      ],
+      "properties": {
+        "min": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "safe_band": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "difficulty",
+        "thresholds",
+        "hp",
+        "stress",
+        "atk",
+        "fixed_damage",
+        "damage_avg"
+      ],
+      "properties": {
+        "difficulty": {
+          "$ref": "#/$defs/boundOrNull"
+        },
+        "thresholds": {
+          "$ref": "#/$defs/thresholdBoundsOrNull"
+        },
+        "hp": {
+          "$ref": "#/$defs/boundOrNull"
+        },
+        "stress": {
+          "$ref": "#/$defs/boundOrNull"
+        },
+        "atk": {
+          "$ref": "#/$defs/boundOrNull"
+        },
+        "fixed_damage": {
+          "$ref": "#/$defs/boundOrNull"
+        },
+        "damage_avg": {
+          "$ref": "#/$defs/boundOrNull"
+        }
+      }
+    },
+    "role_specific_expectations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "judge_focus": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "bound": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lower_bound",
+        "upper_bound"
+      ],
+      "properties": {
+        "lower_bound": {
+          "type": "number"
+        },
+        "upper_bound": {
+          "type": "number"
+        }
+      }
+    },
+    "boundOrNull": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/bound"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "thresholdBounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "first_threshold",
+        "second_threshold"
+      ],
+      "properties": {
+        "first_threshold": {
+          "$ref": "#/$defs/bound"
+        },
+        "second_threshold": {
+          "$ref": "#/$defs/bound"
+        }
+      }
+    },
+    "thresholdBoundsOrNull": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/thresholdBounds"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

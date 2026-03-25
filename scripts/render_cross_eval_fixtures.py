@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from cross_eval_models import validate_verification_properties
+
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SCENARIO = ROOT / "evals" / "cross-eval" / "scenarios" / "tier1_leader_smoke.json"
@@ -69,12 +71,32 @@ def read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text())
 
 
-def to_jsonable_band(value: Any) -> Any:
-    if value is None:
+def explicit_bounds(bounds: tuple[int, int] | tuple[float, float] | None) -> dict[str, int | float] | None:
+    if bounds is None:
         return None
-    if isinstance(value, tuple):
-        return [to_jsonable_band(item) for item in value]
-    return value
+    lower_bound, upper_bound = bounds
+    return {
+        "lower_bound": lower_bound,
+        "upper_bound": upper_bound,
+    }
+
+
+def explicit_threshold_bounds(
+    thresholds: tuple[tuple[int, int], tuple[int, int]] | None,
+) -> dict[str, dict[str, int]] | None:
+    if thresholds is None:
+        return None
+    first_threshold, second_threshold = thresholds
+    return {
+        "first_threshold": {
+            "lower_bound": first_threshold[0],
+            "upper_bound": first_threshold[1],
+        },
+        "second_threshold": {
+            "lower_bound": second_threshold[0],
+            "upper_bound": second_threshold[1],
+        },
+    }
 
 
 def build_verification_properties(scenario: dict[str, Any]) -> dict[str, Any]:
@@ -86,7 +108,7 @@ def build_verification_properties(scenario: dict[str, Any]) -> dict[str, Any]:
     ref_path = VALIDATOR_MODULE.REFS / f"tier-{expected_tier}-{expected_role}.md"
     band = VALIDATOR_MODULE.parse_safe_band(ref_path)
 
-    return {
+    return validate_verification_properties({
         "scenario_id": scenario["id"],
         "suite": scenario["suite"],
         "validator": "adversary-creation",
@@ -102,13 +124,13 @@ def build_verification_properties(scenario: dict[str, Any]) -> dict[str, Any]:
             "max": 3,
         },
         "safe_band": {
-            "difficulty": to_jsonable_band(band.difficulty),
-            "thresholds": to_jsonable_band(band.thresholds),
-            "hp": to_jsonable_band(band.hp),
-            "stress": to_jsonable_band(band.stress),
-            "atk": to_jsonable_band(band.atk),
-            "fixed_damage": to_jsonable_band(band.fixed_damage),
-            "damage_avg": to_jsonable_band(band.damage_avg),
+            "difficulty": explicit_bounds(band.difficulty),
+            "thresholds": explicit_threshold_bounds(band.thresholds),
+            "hp": explicit_bounds(band.hp),
+            "stress": explicit_bounds(band.stress),
+            "atk": explicit_bounds(band.atk),
+            "fixed_damage": explicit_bounds(band.fixed_damage),
+            "damage_avg": explicit_bounds(band.damage_avg),
         },
         "role_specific_expectations": ROLE_EXPECTATIONS.get(expected_role, []),
         "judge_focus": [
@@ -117,7 +139,7 @@ def build_verification_properties(scenario: dict[str, Any]) -> dict[str, Any]:
             "Check that numbers and features fit the stated role and battlefield job.",
             "Flag overloaded, generic, or weak feature design."
         ],
-    }
+    })
 
 
 def render_scenario(path: Path) -> tuple[Path, Path]:
@@ -129,7 +151,8 @@ def render_scenario(path: Path) -> tuple[Path, Path]:
     properties_path = fixture_dir / "verification-properties.json"
 
     request_path.write_text(scenario["prompt"].rstrip() + "\n")
-    properties_path.write_text(json.dumps(build_verification_properties(scenario), indent=2) + "\n")
+    properties = build_verification_properties(scenario)
+    properties_path.write_text(json.dumps(properties, indent=2) + "\n")
     return request_path, properties_path
 
 
