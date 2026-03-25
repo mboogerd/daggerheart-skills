@@ -20,7 +20,6 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SCENARIO = ROOT / "evals" / "cross-eval" / "scenarios" / "tier1_leader_smoke.json"
 DEFAULT_OUTPUT_ROOT = ROOT / "cross-eval"
 DEFAULT_JUNIT_XML = ROOT / "test-results" / "cross-eval.junit.xml"
-SCHEMA_PATH = ROOT / "evals" / "cross-eval" / "judge.schema.json"
 FIXTURE_ROOT = ROOT / "evals" / "cross-eval" / "fixtures"
 
 
@@ -103,10 +102,8 @@ def run_command(cmd: list[str], *, cwd: Path, stdout_path: Path, stderr_path: Pa
     )
 
 
-def run_codex(prompt: str, *, model: str, output_path: Path, log_prefix: Path, schema_path: Path | None = None) -> CommandResult:
+def run_codex(prompt: str, *, model: str, output_path: Path, log_prefix: Path) -> CommandResult:
     cmd = ["codex", "exec", "--sandbox", "read-only", "--model", model]
-    if schema_path is not None:
-        cmd.extend(["--output-schema", str(schema_path)])
     cmd.extend(["--output-last-message", str(output_path), "-"])
     return run_command(
         cmd,
@@ -117,19 +114,17 @@ def run_codex(prompt: str, *, model: str, output_path: Path, log_prefix: Path, s
     )
 
 
-def run_claude(prompt: str, *, model: str, output_path: Path, log_prefix: Path, schema_text: str | None = None) -> CommandResult:
+def run_claude(prompt: str, *, model: str, output_path: Path, log_prefix: Path) -> CommandResult:
     cmd = [
         "claude",
         "-p",
         "--output-format",
-        "json" if schema_text is not None else "text",
+        "text",
         "--permission-mode",
         "bypassPermissions",
         "--model",
         model,
     ]
-    if schema_text is not None:
-        cmd.extend(["--json-schema", schema_text])
     cmd.append(prompt)
     result = run_command(
         cmd,
@@ -165,17 +160,32 @@ def build_generation_prompt(skill_path: str, user_request: str) -> str:
     ).strip() + "\n"
 
 
-def build_judge_prompt(*, request_path: Path, properties_path: Path, candidate_name: str, candidate_output: str) -> str:
+def build_judge_prompt(
+    *,
+    request_path: Path,
+    properties_path: Path,
+    request_text: str,
+    properties: dict[str, Any],
+    candidate_name: str,
+    candidate_output: str,
+) -> str:
     return textwrap.dedent(
         f"""
         Judge the candidate output for this repository evaluation.
 
-        Source files to use:
-        - User request: `{display_path(request_path)}`
-        - Verification properties: `{display_path(properties_path)}`
+        Use the inline fixtures below as the complete judging context.
+        Treat the verification properties as the source of truth.
+        Do not invent additional format requirements beyond what is stated here.
 
-        Read those files before deciding. Use the verification properties as the source of truth for judging.
-        Do not expand the scope by reading the full skill definition unless the verification properties explicitly require it.
+        User request fixture (`{display_path(request_path)}`):
+        <<<USER_REQUEST
+        {request_text.rstrip()}
+        USER_REQUEST
+
+        Verification properties (`{display_path(properties_path)}`):
+        <<<VERIFICATION_PROPERTIES
+        {json.dumps(properties, indent=2)}
+        VERIFICATION_PROPERTIES
 
         Candidate generator: {candidate_name}
 
@@ -184,22 +194,9 @@ def build_judge_prompt(*, request_path: Path, properties_path: Path, candidate_n
         {candidate_output.rstrip()}
         CANDIDATE_OUTPUT
 
-        Return JSON only with the required schema.
+        Return a structured judgment using the provided schema.
         """
     ).strip() + "\n"
-
-
-def parse_structured_json(text: str) -> dict[str, Any]:
-    stripped = text.strip()
-    if stripped.startswith("```"):
-        lines = stripped.splitlines()
-        if len(lines) >= 3:
-            stripped = "\n".join(lines[1:-1]).strip()
-    start = stripped.find("{")
-    end = stripped.rfind("}")
-    if start == -1 or end == -1 or end < start:
-        raise ValueError("No JSON object found in model output")
-    return json.loads(stripped[start : end + 1])
 
 
 def failure_judge_payload(summary: str, issue: str) -> dict[str, Any]:
@@ -211,132 +208,6 @@ def failure_judge_payload(summary: str, issue: str) -> dict[str, Any]:
         "issues": [issue],
         "confidence": "low",
     }
-
-
-def normalize_score(value: Any) -> int:
-    if isinstance(value, bool):
-        raise ValueError("Boolean is not a valid score")
-    if isinstance(value, int):
-        if 1 <= value <= 5:
-            return value
-        if 0 <= value <= 100:
-            return max(1, min(5, round(value / 20)))
-    if isinstance(value, float):
-        if 0.0 <= value <= 1.0:
-            return max(1, min(5, round(value * 5)))
-        if 1.0 <= value <= 5.0:
-            return max(1, min(5, round(value)))
-        if 0.0 <= value <= 100.0:
-            return max(1, min(5, round(value / 20)))
-    raise ValueError("Judge payload score must be an int 1-5 or a normalizable float")
-
-
-def unwrap_judge_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    if payload.get("type") == "result" and isinstance(payload.get("result"), str):
-        return parse_structured_json(payload["result"])
-    return payload
-
-
-def normalize_judge_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    payload = unwrap_judge_payload(payload)
-    normalized = dict(payload)
-    if "pass" not in normalized:
-        if "passes_verification" in normalized:
-            normalized["pass"] = bool(normalized["passes_verification"])
-        elif "meets_requirements" in normalized:
-            normalized["pass"] = bool(normalized["meets_requirements"])
-        elif isinstance(normalized.get("overall_assessment"), str):
-            assessment = normalized["overall_assessment"].strip().lower()
-            if assessment in {"pass", "passed"}:
-                normalized["pass"] = True
-            elif assessment in {"fail", "failed"}:
-                normalized["pass"] = False
-        elif isinstance(normalized.get("overall_status"), str):
-            status = normalized["overall_status"].strip().lower()
-            if status in {"pass", "passed"}:
-                normalized["pass"] = True
-            elif status in {"fail", "failed"}:
-                normalized["pass"] = False
-        elif isinstance(normalized.get("judgment"), str):
-            judgment = normalized["judgment"].strip().lower()
-            if judgment in {"pass", "passed"}:
-                normalized["pass"] = True
-            elif judgment in {"fail", "failed"}:
-                normalized["pass"] = False
-    if "summary" not in normalized:
-        if "feedback" in normalized:
-            if isinstance(normalized["feedback"], dict):
-                strengths = normalized["feedback"].get("strengths", [])
-                issues = normalized["feedback"].get("areas_for_improvement", []) or normalized["feedback"].get("critical_issues", [])
-                if strengths:
-                    normalized["summary"] = str(strengths[0])
-                elif issues:
-                    normalized["summary"] = str(issues[0])
-                else:
-                    normalized["summary"] = "Judge returned structured feedback."
-            else:
-                normalized["summary"] = str(normalized["feedback"])
-        elif isinstance(normalized.get("overall_assessment"), str):
-            normalized["summary"] = normalized["overall_assessment"]
-        elif isinstance(normalized.get("reasoning"), str):
-            normalized["summary"] = normalized["reasoning"]
-    if "issues" not in normalized:
-        if "areas_for_improvement" in normalized and isinstance(normalized["areas_for_improvement"], list):
-            normalized["issues"] = [str(item) for item in normalized["areas_for_improvement"]]
-        elif isinstance(normalized.get("weaknesses"), list):
-            normalized["issues"] = [str(item) for item in normalized["weaknesses"]]
-        elif isinstance(normalized.get("issues_found"), list):
-            normalized["issues"] = [str(item) for item in normalized["issues_found"]]
-        elif isinstance(normalized.get("feedback"), dict):
-            feedback = normalized["feedback"]
-            issues = []
-            if isinstance(feedback.get("areas_for_improvement"), list):
-                issues.extend(str(item) for item in feedback["areas_for_improvement"])
-            if isinstance(feedback.get("critical_issues"), list):
-                issues.extend(str(item) for item in feedback["critical_issues"])
-            normalized["issues"] = issues
-        else:
-            normalized["issues"] = []
-    if "strengths" not in normalized:
-        if isinstance(normalized.get("feedback"), dict) and isinstance(normalized["feedback"].get("strengths"), list):
-            normalized["strengths"] = [str(item) for item in normalized["feedback"]["strengths"]]
-        else:
-            normalized["strengths"] = []
-    if isinstance(normalized.get("suggestions"), list):
-        normalized["issues"].extend(str(item) for item in normalized["suggestions"] if str(item) not in normalized["issues"])
-    if "confidence" not in normalized:
-        normalized["confidence"] = "medium"
-    if "score" in normalized:
-        normalized["score"] = normalize_score(normalized["score"])
-    return normalized
-
-
-def validate_judge_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    required = {
-        "pass": bool,
-        "score": int,
-        "summary": str,
-        "strengths": list,
-        "issues": list,
-        "confidence": str,
-    }
-    for key, expected_type in required.items():
-        if key not in payload:
-            raise ValueError(f"Judge payload missing required key: {key}")
-        if not isinstance(payload[key], expected_type):
-            raise ValueError(f"Judge payload key `{key}` has wrong type")
-    if payload["confidence"] not in {"low", "medium", "high"}:
-        raise ValueError("Judge payload confidence must be low, medium, or high")
-    return payload
-
-
-def load_judge_payload(path: Path, fallback_summary: str) -> dict[str, Any]:
-    try:
-        return validate_judge_payload(normalize_judge_payload(parse_structured_json(path.read_text())))
-    except Exception as exc:
-        payload = failure_judge_payload(fallback_summary, str(exc))
-        path.write_text(json.dumps(payload, indent=2) + "\n")
-        return payload
 
 
 def validate_candidate(text: str, properties: dict[str, Any]) -> tuple[list[str], list[str]]:
@@ -495,6 +366,7 @@ def run_attempt(
     generated_output_path = outputs_dir / f"{generator}-generated.md"
     judge_prompt_path = prompts_dir / f"{judge_provider}-judge-{generator}.txt"
     judge_output_path = outputs_dir / f"{judge_provider}-judge-{generator}.json"
+    judge_metadata_path = outputs_dir / f"{judge_provider}-judge-{generator}.meta.json"
 
     generation_prompt = build_generation_prompt(properties["skill_access"]["skill_path"], request_text)
     write_text(generation_prompt_path, generation_prompt)
@@ -563,6 +435,8 @@ def run_attempt(
         judge_prompt = build_judge_prompt(
             request_path=copied_request_path,
             properties_path=copied_properties_path,
+            request_text=request_text,
+            properties=properties,
             candidate_name=generator,
             candidate_output=generated_text,
         )
@@ -573,36 +447,35 @@ def run_attempt(
                 judge_output_path,
                 pass_value=mock_fail_attempt != attempt_number,
             )
+            write_text(
+                judge_metadata_path,
+                json.dumps({"provider": judge_provider, "mode": "mock"}, indent=2) + "\n",
+            )
         else:
-            if judge_provider == "claude":
-                judge_command = run_claude(
-                    judge_prompt,
-                    model=claude_model,
-                    output_path=judge_output_path,
-                    log_prefix=outputs_dir / f"{judge_provider}-judge-{generator}",
-                    schema_text=SCHEMA_PATH.read_text(),
+            from structured_judge import judge_with_pydantic_ai
+
+            judge_model = claude_model if judge_provider == "claude" else codex_model
+            try:
+                judge_payload, judge_metadata = judge_with_pydantic_ai(
+                    provider=judge_provider,
+                    model=judge_model,
+                    prompt=judge_prompt,
                 )
-            else:
-                judge_command = run_codex(
-                    judge_prompt,
-                    model=codex_model,
-                    output_path=judge_output_path,
-                    log_prefix=outputs_dir / f"{judge_provider}-judge-{generator}",
-                    schema_path=SCHEMA_PATH,
+                write_text(judge_output_path, json.dumps(judge_payload, indent=2) + "\n")
+                write_text(judge_metadata_path, json.dumps(judge_metadata, indent=2) + "\n")
+            except Exception as exc:
+                judge_payload = failure_judge_payload(
+                    f"{judge_provider.title()} judge execution failed.",
+                    str(exc),
                 )
-            if not judge_command.ok:
                 write_text(
                     judge_output_path,
-                    json.dumps(
-                        failure_judge_payload(
-                            f"{judge_provider.title()} judge execution failed.",
-                            judge_command.error or "Unknown judge error",
-                        ),
-                        indent=2,
-                    )
-                    + "\n",
+                    json.dumps(judge_payload, indent=2) + "\n",
                 )
-            judge_payload = load_judge_payload(judge_output_path, f"{judge_provider.title()} judge output was invalid.")
+                write_text(
+                    judge_metadata_path,
+                    json.dumps({"provider": judge_provider, "model": judge_model, "error": str(exc)}, indent=2) + "\n",
+                )
 
         judge_result = {
             "status": "passed" if judge_payload["pass"] else "failed",
@@ -625,6 +498,8 @@ def run_attempt(
         "judge_provider": judge_provider,
         "generation_prompt_path": display_path(generation_prompt_path),
         "generated_output_path": display_path(generated_output_path),
+        "judge_output_path": display_path(judge_output_path),
+        "judge_metadata_path": display_path(judge_metadata_path),
         "deterministic": deterministic,
         "judge": judge_result,
         "overall_pass": overall_pass,

@@ -52,6 +52,9 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Install Python dependencies
+        run: python3 -m pip install -r requirements.txt
+
       - name: Install Codex CLI
         if: ${{ !inputs.mock_run }}
         run: npm install -g @openai/codex

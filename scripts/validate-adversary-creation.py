@@ -124,6 +124,15 @@ def parse_output(text: str) -> dict[str, Any]:
         line = raw_line.strip()
         if not line:
             continue
+        if "name" not in result and ":" not in line and not in_features:
+            heading = None
+            if line.startswith("#"):
+                heading = line.lstrip("#").strip()
+            elif line.startswith("**") and line.endswith("**") and len(line) > 4:
+                heading = line[2:-2].strip()
+            if heading:
+                result["name"] = heading
+                continue
         if line.startswith("- Features:") or line.startswith("Features:"):
             in_features = True
             result["features"] = features
