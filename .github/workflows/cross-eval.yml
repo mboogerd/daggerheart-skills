@@ -47,21 +47,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
       - name: Install Python dependencies
         run: python3 -m pip install -r requirements.txt
-
-      - name: Install Codex CLI
-        if: ${{ !inputs.mock_run }}
-        run: npm install -g @openai/codex
-
-      - name: Install Claude Code CLI
-        if: ${{ !inputs.mock_run }}
-        run: npm install -g @anthropic-ai/claude-code
 
       - name: Verify live-run secrets
         if: ${{ !inputs.mock_run }}
@@ -75,7 +62,109 @@ jobs:
       - name: Refresh checked-in fixtures
         run: python3 scripts/render_cross_eval_fixtures.py "${{ inputs.scenario }}"
 
-      - name: Run cross-eval session
+      - name: Validate supported attempt count
+        if: ${{ !inputs.mock_run }}
+        run: test "${{ inputs.max_attempts }}" -ge 1 && test "${{ inputs.max_attempts }}" -le 4
+
+      - name: Prepare cross-eval prompts
+        if: ${{ !inputs.mock_run }}
+        run: |
+          python3 scripts/run_cross_eval_session.py \
+            --scenario "${{ inputs.scenario }}" \
+            --output-root cross-eval \
+            --codex-model "${{ inputs.codex_model }}" \
+            --claude-model "${{ inputs.claude_model }}" \
+            --max-attempts "${{ inputs.max_attempts }}" \
+            --prepare-only
+
+      - name: Attempt 1 prompt for Codex
+        if: ${{ !inputs.mock_run }}
+        run: test -f cross-eval/attempt-01-codex-by-claude/prompts/codex-generate.txt
+
+      - name: Attempt 1 generate with Codex
+        if: ${{ !inputs.mock_run }}
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: cross-eval/attempt-01-codex-by-claude/prompts/codex-generate.txt
+          output-file: cross-eval/attempt-01-codex-by-claude/outputs/codex-generated.md
+          working-directory: .
+          sandbox: read-only
+          codex-args: --model ${{ inputs.codex_model }}
+
+      - name: Load attempt 2 Claude prompt
+        id: attempt_2_prompt
+        if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 2 }}
+        run: |
+          {
+            echo 'prompt<<EOF'
+            cat cross-eval/attempt-02-claude-by-codex/prompts/claude-generate.txt
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Attempt 2 generate with Claude
+        id: attempt_2_claude
+        if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 2 }}
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: ${{ steps.attempt_2_prompt.outputs.prompt }}
+          claude_args: |
+            --model ${{ inputs.claude_model }}
+            --max-turns 8
+
+      - name: Extract attempt 2 Claude output
+        if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 2 }}
+        run: |
+          python3 scripts/extract_claude_action_output.py \
+            --input "${{ steps.attempt_2_claude.outputs.execution_file }}" \
+            --output cross-eval/attempt-02-claude-by-codex/outputs/claude-generated.md
+
+      - name: Attempt 3 prompt for Codex
+        if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 3 }}
+        run: test -f cross-eval/attempt-03-codex-by-claude/prompts/codex-generate.txt
+
+      - name: Attempt 3 generate with Codex
+        if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 3 }}
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: cross-eval/attempt-03-codex-by-claude/prompts/codex-generate.txt
+          output-file: cross-eval/attempt-03-codex-by-claude/outputs/codex-generated.md
+          working-directory: .
+          sandbox: read-only
+          codex-args: --model ${{ inputs.codex_model }}
+
+      - name: Load attempt 4 Claude prompt
+        id: attempt_4_prompt
+        if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 4 }}
+        run: |
+          {
+            echo 'prompt<<EOF'
+            cat cross-eval/attempt-04-claude-by-codex/prompts/claude-generate.txt
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Attempt 4 generate with Claude
+        id: attempt_4_claude
+        if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 4 }}
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: ${{ steps.attempt_4_prompt.outputs.prompt }}
+          claude_args: |
+            --model ${{ inputs.claude_model }}
+            --max-turns 8
+
+      - name: Extract attempt 4 Claude output
+        if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 4 }}
+        run: |
+          python3 scripts/extract_claude_action_output.py \
+            --input "${{ steps.attempt_4_claude.outputs.execution_file }}" \
+            --output cross-eval/attempt-04-claude-by-codex/outputs/claude-generated.md
+
+      - name: Run mock cross-eval session
+        if: ${{ inputs.mock_run }}
         id: cross_eval
         continue-on-error: true
         env:
@@ -94,6 +183,23 @@ jobs:
             --claude-model "${{ inputs.claude_model }}" \
             --max-attempts "${{ inputs.max_attempts }}" \
             "${args[@]}"
+
+      - name: Evaluate generated outputs
+        if: ${{ !inputs.mock_run }}
+        id: cross_eval_live
+        continue-on-error: true
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python3 scripts/run_cross_eval_session.py \
+            --scenario "${{ inputs.scenario }}" \
+            --output-root cross-eval \
+            --junit-xml test-results/cross-eval.junit.xml \
+            --codex-model "${{ inputs.codex_model }}" \
+            --claude-model "${{ inputs.claude_model }}" \
+            --max-attempts "${{ inputs.max_attempts }}" \
+            --use-existing-outputs
 
       - name: Add workflow summary
         if: ${{ !cancelled() }}
@@ -117,5 +223,5 @@ jobs:
             test-results/cross-eval.junit.xml
 
       - name: Fail workflow when cross-eval fails
-        if: steps.cross_eval.outcome == 'failure'
+        if: steps.cross_eval.outcome == 'failure' || steps.cross_eval_live.outcome == 'failure'
         run: exit 1

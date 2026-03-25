@@ -78,6 +78,55 @@ def build_attempt_plan(max_attempts: int) -> list[tuple[str, str]]:
     return plan
 
 
+def prepare_attempt_files(
+    *,
+    attempt_number: int,
+    generator: str,
+    judge_provider: str,
+    request_path: Path,
+    properties_path: Path,
+    request_text: str,
+    properties: dict[str, Any],
+    output_root: Path,
+) -> dict[str, Path]:
+    attempt_dir = output_root / f"attempt-{attempt_number:02d}-{generator}-by-{judge_provider}"
+    inputs_dir = attempt_dir / "inputs"
+    prompts_dir = attempt_dir / "prompts"
+    outputs_dir = attempt_dir / "outputs"
+    reports_dir = attempt_dir / "reports"
+    for directory in [inputs_dir, prompts_dir, outputs_dir, reports_dir]:
+        directory.mkdir(parents=True, exist_ok=True)
+
+    copied_request_path = inputs_dir / "user-request.txt"
+    copied_properties_path = inputs_dir / "verification-properties.json"
+    shutil.copyfile(request_path, copied_request_path)
+    shutil.copyfile(properties_path, copied_properties_path)
+
+    generation_prompt_path = prompts_dir / f"{generator}-generate.txt"
+    generated_output_path = outputs_dir / f"{generator}-generated.md"
+    judge_prompt_path = prompts_dir / f"{judge_provider}-judge-{generator}.txt"
+    judge_output_path = outputs_dir / f"{judge_provider}-judge-{generator}.json"
+    judge_metadata_path = outputs_dir / f"{judge_provider}-judge-{generator}.meta.json"
+
+    generation_prompt = build_generation_prompt(properties["skill_access"]["skill_path"], request_text)
+    write_text(generation_prompt_path, generation_prompt)
+
+    return {
+        "attempt_dir": attempt_dir,
+        "inputs_dir": inputs_dir,
+        "prompts_dir": prompts_dir,
+        "outputs_dir": outputs_dir,
+        "reports_dir": reports_dir,
+        "copied_request_path": copied_request_path,
+        "copied_properties_path": copied_properties_path,
+        "generation_prompt_path": generation_prompt_path,
+        "generated_output_path": generated_output_path,
+        "judge_prompt_path": judge_prompt_path,
+        "judge_output_path": judge_output_path,
+        "judge_metadata_path": judge_metadata_path,
+    }
+
+
 def run_command(cmd: list[str], *, cwd: Path, stdout_path: Path, stderr_path: Path, stdin_text: str | None = None) -> CommandResult:
     stdout_path.parent.mkdir(parents=True, exist_ok=True)
     stderr_path.parent.mkdir(parents=True, exist_ok=True)
@@ -348,32 +397,36 @@ def run_attempt(
     claude_model: str,
     mock: bool,
     mock_fail_attempt: int | None,
+    use_existing_outputs: bool,
 ) -> dict[str, Any]:
-    attempt_dir = output_root / f"attempt-{attempt_number:02d}-{generator}-by-{judge_provider}"
-    inputs_dir = attempt_dir / "inputs"
-    prompts_dir = attempt_dir / "prompts"
-    outputs_dir = attempt_dir / "outputs"
-    reports_dir = attempt_dir / "reports"
-    for directory in [inputs_dir, prompts_dir, outputs_dir, reports_dir]:
-        directory.mkdir(parents=True, exist_ok=True)
-
-    copied_request_path = inputs_dir / "user-request.txt"
-    copied_properties_path = inputs_dir / "verification-properties.json"
-    shutil.copyfile(request_path, copied_request_path)
-    shutil.copyfile(properties_path, copied_properties_path)
-
-    generation_prompt_path = prompts_dir / f"{generator}-generate.txt"
-    generated_output_path = outputs_dir / f"{generator}-generated.md"
-    judge_prompt_path = prompts_dir / f"{judge_provider}-judge-{generator}.txt"
-    judge_output_path = outputs_dir / f"{judge_provider}-judge-{generator}.json"
-    judge_metadata_path = outputs_dir / f"{judge_provider}-judge-{generator}.meta.json"
-
-    generation_prompt = build_generation_prompt(properties["skill_access"]["skill_path"], request_text)
-    write_text(generation_prompt_path, generation_prompt)
+    paths = prepare_attempt_files(
+        attempt_number=attempt_number,
+        generator=generator,
+        judge_provider=judge_provider,
+        request_path=request_path,
+        properties_path=properties_path,
+        request_text=request_text,
+        properties=properties,
+        output_root=output_root,
+    )
+    outputs_dir = paths["outputs_dir"]
+    reports_dir = paths["reports_dir"]
+    copied_request_path = paths["copied_request_path"]
+    copied_properties_path = paths["copied_properties_path"]
+    generation_prompt_path = paths["generation_prompt_path"]
+    generated_output_path = paths["generated_output_path"]
+    judge_prompt_path = paths["judge_prompt_path"]
+    judge_output_path = paths["judge_output_path"]
+    judge_metadata_path = paths["judge_metadata_path"]
+    generation_prompt = generation_prompt_path.read_text()
 
     if mock:
         materialize_mock_generation(ROOT / scenario["sample_output"], generated_output_path)
         generation_result = None
+    elif use_existing_outputs:
+        generation_result = None
+        if not generated_output_path.exists():
+            raise SystemExit(f"Missing pre-generated output for attempt {attempt_number}: {generated_output_path}")
     else:
         if generator == "codex":
             generation_result = run_codex(
@@ -519,6 +572,8 @@ def main() -> int:
     parser.add_argument("--max-attempts", type=int)
     parser.add_argument("--mock", action="store_true")
     parser.add_argument("--mock-fail-attempt", type=int)
+    parser.add_argument("--prepare-only", action="store_true")
+    parser.add_argument("--use-existing-outputs", action="store_true")
     args = parser.parse_args()
 
     scenario = read_json(args.scenario)
@@ -539,11 +594,27 @@ def main() -> int:
     if requested_attempts < 1:
         raise SystemExit("--max-attempts must be at least 1.")
 
-    if not args.mock:
+    if args.prepare_only:
+        for attempt_number, (generator, judge_provider) in enumerate(build_attempt_plan(requested_attempts), start=1):
+            prepare_attempt_files(
+                attempt_number=attempt_number,
+                generator=generator,
+                judge_provider=judge_provider,
+                request_path=request_path,
+                properties_path=properties_path,
+                request_text=request_text,
+                properties=properties,
+                output_root=output_root,
+            )
+        print(f"Prepared {requested_attempts} attempt prompt sets in {output_root}")
+        return 0
+
+    if not args.mock and not args.use_existing_outputs:
         if not command_exists("codex"):
             raise SystemExit("`codex` is not available on PATH.")
         if not command_exists("claude"):
             raise SystemExit("`claude` is not available on PATH.")
+    if not args.mock:
         if not os.environ.get("OPENAI_API_KEY"):
             raise SystemExit("OPENAI_API_KEY is required for live runs.")
         if not os.environ.get("ANTHROPIC_API_KEY"):
@@ -567,6 +638,7 @@ def main() -> int:
             claude_model=args.claude_model,
             mock=args.mock,
             mock_fail_attempt=args.mock_fail_attempt,
+            use_existing_outputs=args.use_existing_outputs,
         )
         attempts.append(attempt_report)
         if not attempt_report["overall_pass"]:
