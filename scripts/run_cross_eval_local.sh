@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCENARIO="evals/cross-eval/scenarios/tier1_leader_smoke.json"
+OUTPUT_ROOT="$ROOT_DIR/cross-eval"
+JUNIT_XML="$ROOT_DIR/test-results/cross-eval.junit.xml"
+CODEX_MODEL="gpt-5-codex"
+CLAUDE_MODEL="claude-sonnet-4-20250514"
+MAX_ATTEMPTS="3"
+MODE="live"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  scripts/run_cross_eval_local.sh [mode] [options]
+
+Modes:
+  live       Run the full local cross-eval with local Codex/Claude CLIs.
+  mock       Run the fixture-only mock path.
+  prepare    Generate prompt files only, for a GitHub-like local flow.
+  evaluate   Evaluate already-generated outputs under the output root.
+
+Options:
+  --scenario PATH
+  --output-root PATH
+  --junit-xml PATH
+  --codex-model MODEL
+  --claude-model MODEL
+  --max-attempts N
+  -h, --help
+
+Examples:
+  scripts/run_cross_eval_local.sh
+  scripts/run_cross_eval_local.sh mock
+  scripts/run_cross_eval_local.sh prepare --output-root /tmp/cross-eval-local
+  scripts/run_cross_eval_local.sh evaluate --output-root /tmp/cross-eval-local
+EOF
+}
+
+if [[ $# -gt 0 ]]; then
+  case "$1" in
+    live|mock|prepare|evaluate)
+      MODE="$1"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+  esac
+fi
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --scenario)
+      SCENARIO="$2"
+      shift 2
+      ;;
+    --output-root)
+      OUTPUT_ROOT="$2"
+      shift 2
+      ;;
+    --junit-xml)
+      JUNIT_XML="$2"
+      shift 2
+      ;;
+    --codex-model)
+      CODEX_MODEL="$2"
+      shift 2
+      ;;
+    --claude-model)
+      CLAUDE_MODEL="$2"
+      shift 2
+      ;;
+    --max-attempts)
+      MAX_ATTEMPTS="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+cd "$ROOT_DIR"
+
+COMMON_ARGS=(
+  --scenario "$SCENARIO"
+  --output-root "$OUTPUT_ROOT"
+  --junit-xml "$JUNIT_XML"
+  --codex-model "$CODEX_MODEL"
+  --claude-model "$CLAUDE_MODEL"
+  --max-attempts "$MAX_ATTEMPTS"
+)
+
+case "$MODE" in
+  live)
+    python3 scripts/run_cross_eval_session.py "${COMMON_ARGS[@]}"
+    ;;
+  mock)
+    python3 scripts/run_cross_eval_session.py "${COMMON_ARGS[@]}" --mock
+    ;;
+  prepare)
+    python3 scripts/run_cross_eval_session.py "${COMMON_ARGS[@]}" --prepare-only
+    ;;
+  evaluate)
+    python3 scripts/run_cross_eval_session.py "${COMMON_ARGS[@]}" --use-existing-outputs
+    ;;
+  *)
+    echo "Unsupported mode: $MODE" >&2
+    exit 1
+    ;;
+esac

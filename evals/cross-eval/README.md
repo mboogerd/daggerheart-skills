@@ -34,7 +34,7 @@ python3 scripts/render_cross_eval_fixtures.py
 Use mock mode first to verify the pipeline without calling model APIs:
 
 ```bash
-python3 scripts/run_cross_eval_session.py --mock
+scripts/run_cross_eval_local.sh mock
 ```
 
 That writes per-attempt prompts, outputs, JSON reports, a markdown summary, and JUnit XML under `cross-eval/`.
@@ -44,11 +44,28 @@ That writes per-attempt prompts, outputs, JSON reports, a markdown summary, and 
 After exporting `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`, run:
 
 ```bash
-python3 scripts/run_cross_eval_session.py
+scripts/run_cross_eval_local.sh
 ```
 
 Useful options:
 
 - `--scenario <path>`
 - `--max-attempts 3`
-- `--mock-fail-attempt 2`
+
+## GitHub-Like Local Flow
+
+If you want to mirror the split GitHub Actions flow locally:
+
+1. Prepare prompts only:
+
+```bash
+scripts/run_cross_eval_local.sh prepare --output-root /tmp/cross-eval-local
+```
+
+2. Generate outputs however you want into the prepared `attempt-*` folders.
+
+3. Evaluate those existing outputs:
+
+```bash
+scripts/run_cross_eval_local.sh evaluate --output-root /tmp/cross-eval-local
+```
