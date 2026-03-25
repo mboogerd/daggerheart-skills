@@ -27,11 +27,14 @@ Use this skill when the user needs a new enemy rather than a reskin.
 
 - Name
 - Tier
-- Role
+- Type
 - Description
 - Motives and tactics
-- Stat-line guidance
-- 1 to 3 features
+- Full stat line
+- Optional Experience
+- 1 to 3 features, each on its own line
+
+Always follow `assets/template.md` exactly for field names and ordering.
 
 ## Tier-Role Files
 

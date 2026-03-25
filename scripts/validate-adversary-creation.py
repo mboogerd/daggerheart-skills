@@ -124,7 +124,7 @@ def parse_output(text: str) -> dict[str, Any]:
         line = raw_line.strip()
         if not line:
             continue
-        if line.startswith("- Features:"):
+        if line.startswith("- Features:") or line.startswith("Features:"):
             in_features = True
             result["features"] = features
             continue
@@ -135,7 +135,7 @@ def parse_output(text: str) -> dict[str, Any]:
             if re.match(r"^\d+\.", line):
                 features.append(re.sub(r"^\d+\.\s*", "", line))
                 continue
-        m = re.match(r"^[-*]\s*([^:]+):\s*(.+)$", line)
+        m = re.match(r"^(?:[-*]\s*)?([^:]+):\s*(.+)$", line)
         if m:
             key = m.group(1).strip().lower()
             result[key] = m.group(2).strip()

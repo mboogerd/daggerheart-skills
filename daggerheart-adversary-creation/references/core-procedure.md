@@ -51,9 +51,22 @@ Use those defaults only when the user omitted them and the context does not stro
 - **Experience:** optional bonus for specialized fictional competence.
 - **Features:** the part that makes the enemy feel specific rather than generic.
 
+## Output Serialization Rules
+
+- Return a plain markdown stat block, not YAML frontmatter or note metadata.
+- Use the exact field labels from `assets/template.md`.
+- `Type` is the role field in the final stat block. Do not output `Role:`.
+- `Thresholds` must be written as `A/B` using only the numeric thresholds, or `None` for minions.
+- `Standard attack` must be written as `Attack Name, Range, Damage`.
+- Put `Experience` on its own line when used.
+- Write `Features:` on its own line, then put each feature on its own indented bullet line.
+- Each feature line should use `Feature Name - Passive|Action|Reaction: effect text`.
+
 ## Hard Rules
 
 - Do not pick numbers before the role.
 - Do not hybridize multiple roles unless the user explicitly wants an unusual design.
 - Do not make every stat high. Pick one or two standout stats and keep the rest near the role baseline.
 - Do not add extra features just because the stat block looks short.
+- Do not output Obsidian frontmatter, tags, or note properties.
+- Do not serialize features as prose paragraphs or semicolon-separated clauses.

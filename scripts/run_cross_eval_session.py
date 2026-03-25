@@ -122,7 +122,7 @@ def run_claude(prompt: str, *, model: str, output_path: Path, log_prefix: Path, 
         "claude",
         "-p",
         "--output-format",
-        "text",
+        "json" if schema_text is not None else "text",
         "--permission-mode",
         "bypassPermissions",
         "--model",
@@ -147,6 +147,7 @@ def build_generation_prompt(skill_path: str, user_request: str) -> str:
         f"""
         Repository grounding:
         - Read and use `{skill_path}` and the files it references before answering.
+        - Read and follow the exact final-output shape in `daggerheart-adversary-creation/assets/template.md`.
         - Use that skill as the source of truth for format and content.
         - Do not use any evaluation criteria, expected role metadata, or sample outputs.
 
@@ -155,7 +156,8 @@ def build_generation_prompt(skill_path: str, user_request: str) -> str:
         {user_request.rstrip()}
 
         Output requirements:
-        - Return only the final answer.
+        - Return only the final stat block body.
+        - Do not output YAML frontmatter, tags, metadata fields, or explanatory prose.
         - Do not wrap the answer in code fences.
         - Do not explain your reasoning.
         - Do not modify repository files.
@@ -211,9 +213,126 @@ def failure_judge_payload(summary: str, issue: str) -> dict[str, Any]:
     }
 
 
+def normalize_score(value: Any) -> int:
+    if isinstance(value, bool):
+        raise ValueError("Boolean is not a valid score")
+    if isinstance(value, int):
+        if 1 <= value <= 5:
+            return value
+        if 0 <= value <= 100:
+            return max(1, min(5, round(value / 20)))
+    if isinstance(value, float):
+        if 0.0 <= value <= 1.0:
+            return max(1, min(5, round(value * 5)))
+        if 1.0 <= value <= 5.0:
+            return max(1, min(5, round(value)))
+        if 0.0 <= value <= 100.0:
+            return max(1, min(5, round(value / 20)))
+    raise ValueError("Judge payload score must be an int 1-5 or a normalizable float")
+
+
+def unwrap_judge_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    if payload.get("type") == "result" and isinstance(payload.get("result"), str):
+        return parse_structured_json(payload["result"])
+    return payload
+
+
+def normalize_judge_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    payload = unwrap_judge_payload(payload)
+    normalized = dict(payload)
+    if "pass" not in normalized:
+        if "passes_verification" in normalized:
+            normalized["pass"] = bool(normalized["passes_verification"])
+        elif "meets_requirements" in normalized:
+            normalized["pass"] = bool(normalized["meets_requirements"])
+        elif isinstance(normalized.get("overall_assessment"), str):
+            assessment = normalized["overall_assessment"].strip().lower()
+            if assessment in {"pass", "passed"}:
+                normalized["pass"] = True
+            elif assessment in {"fail", "failed"}:
+                normalized["pass"] = False
+        elif isinstance(normalized.get("overall_status"), str):
+            status = normalized["overall_status"].strip().lower()
+            if status in {"pass", "passed"}:
+                normalized["pass"] = True
+            elif status in {"fail", "failed"}:
+                normalized["pass"] = False
+        elif isinstance(normalized.get("judgment"), str):
+            judgment = normalized["judgment"].strip().lower()
+            if judgment in {"pass", "passed"}:
+                normalized["pass"] = True
+            elif judgment in {"fail", "failed"}:
+                normalized["pass"] = False
+    if "summary" not in normalized:
+        if "feedback" in normalized:
+            if isinstance(normalized["feedback"], dict):
+                strengths = normalized["feedback"].get("strengths", [])
+                issues = normalized["feedback"].get("areas_for_improvement", []) or normalized["feedback"].get("critical_issues", [])
+                if strengths:
+                    normalized["summary"] = str(strengths[0])
+                elif issues:
+                    normalized["summary"] = str(issues[0])
+                else:
+                    normalized["summary"] = "Judge returned structured feedback."
+            else:
+                normalized["summary"] = str(normalized["feedback"])
+        elif isinstance(normalized.get("overall_assessment"), str):
+            normalized["summary"] = normalized["overall_assessment"]
+        elif isinstance(normalized.get("reasoning"), str):
+            normalized["summary"] = normalized["reasoning"]
+    if "issues" not in normalized:
+        if "areas_for_improvement" in normalized and isinstance(normalized["areas_for_improvement"], list):
+            normalized["issues"] = [str(item) for item in normalized["areas_for_improvement"]]
+        elif isinstance(normalized.get("weaknesses"), list):
+            normalized["issues"] = [str(item) for item in normalized["weaknesses"]]
+        elif isinstance(normalized.get("issues_found"), list):
+            normalized["issues"] = [str(item) for item in normalized["issues_found"]]
+        elif isinstance(normalized.get("feedback"), dict):
+            feedback = normalized["feedback"]
+            issues = []
+            if isinstance(feedback.get("areas_for_improvement"), list):
+                issues.extend(str(item) for item in feedback["areas_for_improvement"])
+            if isinstance(feedback.get("critical_issues"), list):
+                issues.extend(str(item) for item in feedback["critical_issues"])
+            normalized["issues"] = issues
+        else:
+            normalized["issues"] = []
+    if "strengths" not in normalized:
+        if isinstance(normalized.get("feedback"), dict) and isinstance(normalized["feedback"].get("strengths"), list):
+            normalized["strengths"] = [str(item) for item in normalized["feedback"]["strengths"]]
+        else:
+            normalized["strengths"] = []
+    if isinstance(normalized.get("suggestions"), list):
+        normalized["issues"].extend(str(item) for item in normalized["suggestions"] if str(item) not in normalized["issues"])
+    if "confidence" not in normalized:
+        normalized["confidence"] = "medium"
+    if "score" in normalized:
+        normalized["score"] = normalize_score(normalized["score"])
+    return normalized
+
+
+def validate_judge_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    required = {
+        "pass": bool,
+        "score": int,
+        "summary": str,
+        "strengths": list,
+        "issues": list,
+        "confidence": str,
+    }
+    for key, expected_type in required.items():
+        if key not in payload:
+            raise ValueError(f"Judge payload missing required key: {key}")
+        if not isinstance(payload[key], expected_type):
+            raise ValueError(f"Judge payload key `{key}` has wrong type")
+    if payload["confidence"] not in {"low", "medium", "high"}:
+        raise ValueError("Judge payload confidence must be low, medium, or high")
+    return payload
+
+
 def load_judge_payload(path: Path, fallback_summary: str) -> dict[str, Any]:
     try:
-        return parse_structured_json(path.read_text())
+        return validate_judge_payload(normalize_judge_payload(parse_structured_json(path.read_text())))
     except Exception as exc:
         payload = failure_judge_payload(fallback_summary, str(exc))
         path.write_text(json.dumps(payload, indent=2) + "\n")
