@@ -239,8 +239,12 @@ def validate_output(text: str, case: dict[str, Any] | None = None) -> tuple[list
         if not entry.get("scene job", "").strip():
             warnings.append(f"Roster slot {index} should explain its scene job more clearly.")
 
-    if final_budget is not None and total_points > final_budget:
-        errors.append(f"Roster plan spends {total_points} points against a final budget of {final_budget}.")
+    require_full_budget_use = case.get("require_full_budget_use", True)
+    if final_budget is not None:
+        if require_full_budget_use and total_points != final_budget:
+            errors.append(f"Roster plan spends {total_points} points against a final budget of {final_budget}.")
+        elif total_points > final_budget:
+            errors.append(f"Roster plan spends {total_points} points against a final budget of {final_budget}.")
 
     allowed_resolution_values = set(case.get("allowed_resolution_values", []))
     if allowed_resolution_values:
@@ -252,7 +256,7 @@ def validate_output(text: str, case: dict[str, Any] | None = None) -> tuple[list
     if required_resolution_values:
         missing = required_resolution_values - set(resolution_values_present)
         if missing:
-            warnings.append(f"Encounter does not demonstrate all expected resolution types: {sorted(missing)}")
+            errors.append(f"Encounter does not demonstrate all required resolution types: {sorted(missing)}")
 
     if "leader" in roles_present and len(roster_entries) < 2:
         errors.append("Leader encounters should include meaningful allies or support structure.")

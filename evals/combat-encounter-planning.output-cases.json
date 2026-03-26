@@ -5,6 +5,7 @@
     "expected_party_size": 4,
     "expected_tier": 1,
     "expected_starting_budget": 14,
+    "require_full_budget_use": true,
     "required_sections": [
       "Encounter Premise",
       "Party Assumptions",
@@ -31,6 +32,7 @@
     "expected_party_size": 3,
     "expected_tier": 2,
     "expected_starting_budget": 11,
+    "require_full_budget_use": true,
     "required_sections": [
       "Narrative Function",
       "Battle-Point Budget",
@@ -53,6 +55,7 @@
     "expected_party_size": 5,
     "expected_tier": 3,
     "expected_starting_budget": 17,
+    "require_full_budget_use": true,
     "required_sections": [
       "Narrative Function",
       "Enemy Motives",
