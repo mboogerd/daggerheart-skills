@@ -38,7 +38,8 @@ For `Role: minion`, `Count` means the number of minion groups, where each group 
   Role:
   Points:
   Scene job:
-  Resolution:
+  Adversary requirements:
+  Acquisition hint:
   Notes:
 
 ## Environment Plan
@@ -60,7 +61,7 @@ For `Role: minion`, `Count` means the number of minion groups, where each group 
 
 ## Dependency Handoffs
 
-- Ready for lookup:
-- Ready for adaptation:
-- Ready for unnamed adversary creation:
-- Ready for named adversary creation:
+- Shared adversary context:
+- Named adversary opportunities:
+- Reusable adversary opportunities:
+- Downstream notes:

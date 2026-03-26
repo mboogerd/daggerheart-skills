@@ -36,49 +36,56 @@
   Role: standard
   Points: 2
   Scene job: Hold the center of the bridge and stop PCs from freely repositioning.
-  Resolution: create-unnamed
+  Adversary requirements: Disciplined deserter infantry with shield-and-polearm pressure and enough toughness to anchor the bridge mouth.
+  Acquisition hint: prefer-new
   Notes: These should read as disciplined deserters with shield-and-polearm pressure.
 - Slot: Flanking bow militia
   Count: 1
   Role: ranged
   Points: 2
   Scene job: Punish PCs who leave cover and force attention away from the bridge mouth.
-  Resolution: adapt-existing
+  Adversary requirements: Militia-style ranged adversary built for crossfire and bridge-approach suppression rather than skirmish movement.
+  Acquisition hint: prefer-existing
   Notes: Adapt from an existing guard or militia-style ranged stat block if available.
 - Slot: Deserter sergeant
   Count: 1
   Role: leader
   Points: 3
   Scene job: Coordinate the push, rally allies, and signal when the line surges.
-  Resolution: create-named
+  Adversary requirements: Named deserter officer whose command abilities only shine while allied militia remain in play.
+  Acquisition hint: prefer-new
   Notes: The sergeant should only shine while allied militia remain in play.
 - Slot: Supply-grab skirmishers
   Count: 1
   Role: skulk
   Points: 2
   Scene job: Slip along the riverbank and threaten carts, villagers, or the backline.
-  Resolution: lookup-existing-unnamed
+  Adversary requirements: Scout or bandit-style skulk suited for riverbank mobility, backline disruption, and opportunistic wagon threats.
+  Acquisition hint: prefer-existing
   Notes: Prefer an existing bandit or scout-style skulk if one is already in the database.
 - Slot: Desperate rabble
   Count: 2
   Role: minion
   Points: 2
   Scene job: Create panic, scale the encounter, and pressure both the bridge deck and wagon line without adding much bookkeeping.
-  Resolution: lookup-existing-unnamed
+  Adversary requirements: Two party-sized minion groups of frightened deserter rabble who create chaos without becoming durable focal threats.
+  Acquisition hint: prefer-existing
   Notes: Use two fictionally distinct minion groups, each equal to party size.
 - Slot: Wagon-pushers
   Count: 1
   Role: support
   Points: 1
   Scene job: Clear space, drag barricades, and make the bridge assault feel coordinated.
-  Resolution: create-unnamed
+  Adversary requirements: Low-damage support piece focused on ally repositioning, momentum, and moving obstacles rather than direct offense.
+  Acquisition hint: prefer-new
   Notes: This support should buff movement or reposition allies instead of dealing heavy damage.
 - Slot: Mud-bank swarm
   Count: 1
   Role: horde
   Points: 2
   Scene job: Pressure any PC who drops off the bridge to fight on the slippery riverbank.
-  Resolution: create-unnamed
+  Adversary requirements: Riverbank horde that makes the fallback ground dangerous and reinforces the scene’s muddy, flood-swollen terrain.
+  Acquisition hint: prefer-new
   Notes: This keeps the fallback ground dangerous instead of safe.
 ## Environment Plan
 
@@ -99,7 +106,7 @@
 
 ## Dependency Handoffs
 
-- Ready for lookup: Supply-grab skirmishers; Desperate rabble
-- Ready for adaptation: Flanking bow militia
-- Ready for unnamed adversary creation: Bridge line militia; Wagon-pushers; Mud-bank swarm
-- Ready for named adversary creation: Deserter sergeant
+- Shared adversary context: All adversaries should feel like desperate militia deserters under the same commander, using improvised battlefield coordination to seize supplies and the bridge.
+- Named adversary opportunities: The deserter sergeant is a strong recurring-face candidate if captured, escaped, or later promoted.
+- Reusable adversary opportunities: Bridge line militia, flanking bow militia, supply-grab skirmishers, and desperate rabble could all become baseline deserter database entries.
+- Downstream notes: Preserve the deserter theme across sourced adversaries; keep wagon-pushers movement-focused, keep riverbank threats tied to muddy flood terrain, and ensure the leader depends on allied militia presence.

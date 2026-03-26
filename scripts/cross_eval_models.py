@@ -160,10 +160,9 @@ def _validate_combat_encounter_planning_properties(payload: dict[str, Any]) -> d
         "expected_party_size",
         "expected_starting_budget",
         "required_sections",
-        "required_resolution_values",
     }
     optional_keys = {
-        "allowed_resolution_values",
+        "allowed_acquisition_hints",
     }
     unexpected_keys = set(payload) - required_keys - optional_keys
     missing_keys = required_keys - set(payload)
@@ -185,11 +184,10 @@ def _validate_combat_encounter_planning_properties(payload: dict[str, Any]) -> d
         raise ValueError("expected_starting_budget must be >= 0")
 
     _expect_list_of_strings(payload["required_sections"], "required_sections")
-    _expect_list_of_strings(payload["required_resolution_values"], "required_resolution_values")
 
-    allowed_resolution_values = payload.get("allowed_resolution_values")
-    if allowed_resolution_values is not None:
-        _expect_list_of_strings(allowed_resolution_values, "allowed_resolution_values")
+    allowed_acquisition_hints = payload.get("allowed_acquisition_hints")
+    if allowed_acquisition_hints is not None:
+        _expect_list_of_strings(allowed_acquisition_hints, "allowed_acquisition_hints")
 
     return payload
 

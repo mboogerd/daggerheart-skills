@@ -18,11 +18,9 @@
       "Victory and Failure States",
       "Dependency Handoffs"
     ],
-    "required_resolution_values": [
-      "lookup-existing-unnamed",
-      "adapt-existing",
-      "create-unnamed",
-      "create-named"
+    "allowed_acquisition_hints": [
+      "prefer-existing",
+      "prefer-new"
     ],
     "sample_output": "skills/evals/combat-encounter-planning/samples/pass-tier1-bridge-defense.md"
   },
@@ -41,11 +39,9 @@
       "Escalation Plan",
       "Victory and Failure States"
     ],
-    "required_resolution_values": [
-      "lookup-existing-unnamed",
-      "adapt-existing",
-      "create-unnamed",
-      "create-named"
+    "allowed_acquisition_hints": [
+      "prefer-existing",
+      "prefer-new"
     ],
     "sample_output": null
   },
@@ -63,11 +59,9 @@
       "Encounter Roster Plan",
       "Dependency Handoffs"
     ],
-    "required_resolution_values": [
-      "lookup-existing-unnamed",
-      "adapt-existing",
-      "create-unnamed",
-      "create-named"
+    "allowed_acquisition_hints": [
+      "prefer-existing",
+      "prefer-new"
     ],
     "sample_output": null
   }

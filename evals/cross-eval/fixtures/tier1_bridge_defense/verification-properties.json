@@ -15,10 +15,11 @@
     "Use legal role costs only: minion/social/support=1, horde/ranged/skulk/standard=2, leader=3, bruiser=4, solo=5.",
     "Use Points for the total spend of that roster slot: Count multiplied by the role cost.",
     "For Role: minion, Count means the number of minion groups, where each group is equal to party size unless you explicitly state otherwise.",
+    "Every roster slot must include Adversary requirements that a downstream sourcing skill could use.",
+    "If you include Acquisition hint, only use prefer-existing or prefer-new.",
     "Spend the full Final budget exactly unless the scenario explicitly says otherwise.",
-    "Demonstrate every required roster resolution type for the scenario at least once.",
     "Keep the encounter at the orchestration layer rather than generating full downstream adversary stat blocks.",
-    "Make roster resolutions explicit.",
+    "Treat lookup versus creation as a downstream sourcing concern rather than the main purpose of this planner.",
     "Do not wrap the answer in code fences.",
     "Do not explain your reasoning.",
     "Do not modify repository files."
@@ -38,23 +39,15 @@
     "Victory and Failure States",
     "Dependency Handoffs"
   ],
-  "required_resolution_values": [
-    "lookup-existing-unnamed",
-    "adapt-existing",
-    "create-unnamed",
-    "create-named"
-  ],
-  "allowed_resolution_values": [
-    "lookup-existing-unnamed",
-    "lookup-existing-named",
-    "create-named",
-    "create-unnamed",
-    "adapt-existing"
+  "allowed_acquisition_hints": [
+    "prefer-existing",
+    "prefer-new"
   ],
   "judge_focus": [
     "Check that the output follows the required encounter-plan structure.",
     "Check that the budget math and role costs are plausible for the stated party and tier.",
     "Check that the encounter creates multiple player-facing pressures rather than a flat fight.",
-    "Check that the plan delegates lookup, adaptation, and creation work explicitly instead of collapsing all downstream work inline."
+    "Check that the plan gives clear adversary requirements for downstream sourcing without collapsing into full stat blocks.",
+    "Check that any acquisition hint is lightweight and does not dominate the planner output."
   ]
 }

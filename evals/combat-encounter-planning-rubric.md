@@ -20,7 +20,8 @@ Grade each output on a 1 to 5 scale.
 
 ## Composition Quality
 
-- Does the plan clearly mark which roster slots should be looked up, adapted, or created?
+- Does each roster slot define clear adversary requirements for downstream sourcing?
+- If an acquisition hint appears, is it lightweight and within the expected domain?
 - Does it avoid silently reimplementing downstream skills?
 
 ## Clarity and Reuse

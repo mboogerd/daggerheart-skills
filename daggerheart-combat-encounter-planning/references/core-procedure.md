@@ -46,6 +46,10 @@ If one roster slot represents multiple adversaries of the same role, set `Count`
 
 For `Role: minion`, `Count` means the number of minion groups. Each such group is equal to the party size unless the encounter explicitly says otherwise.
 
+Every roster slot should also include clear adversary requirements that a downstream skill could use to source the adversary from creation, adaptation, or lookup.
+
+`Acquisition hint` is optional. If used, keep it lightweight and only use `prefer-existing` or `prefer-new`.
+
 ## Composition Rule
 
 The encounter should ask more than one tactical question.
@@ -70,4 +74,4 @@ It should not:
 
 - write full adversary stat blocks unless the user explicitly collapses planning and creation into one request
 - replace environment-design work with a half-finished environment block
-- ignore likely reuse of existing adversaries when lookup or adaptation is the better fit
+- hardcode sourcing decisions when a downstream lookup or creation skill can decide that later

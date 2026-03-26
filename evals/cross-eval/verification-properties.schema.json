@@ -268,8 +268,7 @@
             "expected_tier",
             "expected_party_size",
             "expected_starting_budget",
-            "required_sections",
-            "required_resolution_values"
+            "required_sections"
           ],
           "properties": {
             "scenario_id": {
@@ -314,13 +313,7 @@
                 "type": "string"
               }
             },
-            "required_resolution_values": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "allowed_resolution_values": {
+            "allowed_acquisition_hints": {
               "type": "array",
               "items": {
                 "type": "string"

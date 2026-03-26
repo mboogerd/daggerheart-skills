@@ -18,25 +18,24 @@ The encounter planner should already support these handoff categories even befor
 - unnamed adversary lookup
 - named adversary lookup
 
-## Roster Resolution Values
+## Roster Sourcing Hints
 
-Use one of these values for each roster slot:
+The encounter planner should define the adversary requirements for each roster slot first.
 
-- `lookup-existing-unnamed`
-- `lookup-existing-named`
-- `adapt-existing`
-- `create-unnamed`
-- `create-named`
+If you include an acquisition preference, use one of these values:
+
+- `prefer-existing`
+- `prefer-new`
 
 ## Good Behavior
 
-- Prefer lookup or adaptation when the concept clearly sounds reusable or already-established.
-- Prefer unnamed creation for faction troops, generic specialists, and first-pass customs.
-- Prefer named creation for villains, lieutenants, rivals, and recurring bosses.
-- If a leader or support only works because of specific allies, make those dependencies explicit in the handoff notes.
+- Define role, count, scene job, and adversary requirements clearly enough that a downstream sourcing skill can act on them.
+- Use `prefer-existing` when the concept clearly sounds reusable or already-established.
+- Use `prefer-new` when the slot depends on a fresh bespoke concept.
+- If a leader or support only works because of specific allies, make those dependencies explicit in the requirements and handoff notes.
 
 ## Bad Behavior
 
-- Filling every slot with `create-unnamed`
+- Turning the encounter planner into a disguised adversary-generation step
 - Returning completed stat blocks for multiple enemies instead of a plan
 - Treating the environment as a flavor paragraph rather than a scene pressure

@@ -21,12 +21,12 @@ Use this skill when the user needs a whole combat encounter plan rather than a s
 10. Add environment pressure or explain why the environment is intentionally light.
 11. Add escalation, countdowns, or partial-victory conditions if the scene needs them.
 12. For each roster slot, decide whether it should be:
-    - looked up from an existing adversary source
-    - adapted from an existing adversary
-    - created as a new unnamed adversary
-    - created as a new named adversary
-    Include an explicit `Count` for the slot and use `Points` for the total spend of that slot.
+    - which role, count, and battle-point spend it needs
+    - what battlefield job it serves
+    - what adversary requirements downstream sourcing must satisfy
+    Include an explicit `Count` for the slot, use `Points` for the total spend of that slot, and include `Adversary requirements`.
     For `Role: minion`, treat `Count` as the number of party-sized minion groups unless you explicitly state a different group size.
+    If you include `Acquisition hint`, only use `prefer-existing` or `prefer-new`.
 13. Hand off creation work instead of inventing finished downstream assets inline.
 
 ## Delegation
@@ -37,6 +37,7 @@ Use this skill when the user needs a whole combat encounter plan rather than a s
 - Use `daggerheart-combat-objectives` if the fight mainly needs better stakes or win conditions.
 - Use `daggerheart-adversary-creation` when a roster slot calls for a new unnamed adversary.
 - Plan for future collaboration with named-adversary creation and adversary-lookup skills when the encounter should reuse or elevate existing foes.
+- Treat creation versus retrieval as a downstream sourcing concern. The planner’s main job is to specify what kind of adversary is needed.
 
 ## Output
 

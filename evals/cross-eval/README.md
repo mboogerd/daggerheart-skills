@@ -28,7 +28,7 @@ The verification properties have a suite-specific body inside a common envelope:
 
 - common fields: scenario id, suite, validator, skill grounding, judge focus, generation requirements
 - adversary creation adds explicit numeric bands and role expectations
-- combat encounter planning adds required sections, party/budget expectations, and resolution-value expectations
+- combat encounter planning adds required sections, party/budget expectations, and optional acquisition-hint expectations
 
 For adversary creation, the numeric bands use explicit bound objects, for example:
 
@@ -52,11 +52,9 @@ For combat encounter planning, the verification properties instead express struc
     "Battle-Point Budget",
     "Encounter Roster Plan"
   ],
-  "required_resolution_values": [
-    "lookup-existing-unnamed",
-    "adapt-existing",
-    "create-unnamed",
-    "create-named"
+  "allowed_acquisition_hints": [
+    "prefer-existing",
+    "prefer-new"
   ]
 }
 ```

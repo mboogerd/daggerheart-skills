@@ -37,12 +37,9 @@ ALLOWED_ROLES = {
     "solo",
 }
 
-ALLOWED_RESOLUTION_VALUES = {
-    "lookup-existing-unnamed",
-    "lookup-existing-named",
-    "adapt-existing",
-    "create-unnamed",
-    "create-named",
+ALLOWED_ACQUISITION_HINTS = {
+    "prefer-existing",
+    "prefer-new",
 }
 
 ROLE_POINT_COSTS = {
@@ -201,7 +198,6 @@ def validate_output(text: str, case: dict[str, Any] | None = None) -> tuple[list
 
     total_points = 0
     roles_present: list[str] = []
-    resolution_values_present: list[str] = []
     for index, entry in enumerate(roster_entries, start=1):
         count = parse_int(entry.get("count", ""))
         if count is None:
@@ -234,13 +230,14 @@ def validate_output(text: str, case: dict[str, Any] | None = None) -> tuple[list
                 else:
                     errors.append(f"Roster slot {index} has {points} points, but role `{role}` should cost {expected_cost}.")
 
-        resolution = entry.get("resolution", "").strip()
-        if not resolution:
-            errors.append(f"Roster slot {index} is missing Resolution.")
-        elif resolution not in ALLOWED_RESOLUTION_VALUES:
-            errors.append(f"Roster slot {index} uses unsupported resolution `{resolution}`.")
-        else:
-            resolution_values_present.append(resolution)
+        if not entry.get("adversary requirements", "").strip():
+            errors.append(f"Roster slot {index} is missing Adversary requirements.")
+
+        acquisition_hint = entry.get("acquisition hint", "").strip()
+        if acquisition_hint and acquisition_hint not in ALLOWED_ACQUISITION_HINTS:
+            errors.append(
+                f"Roster slot {index} uses unsupported acquisition hint `{acquisition_hint}`."
+            )
 
         if not entry.get("scene job", "").strip():
             warnings.append(f"Roster slot {index} should explain its scene job more clearly.")
@@ -251,18 +248,6 @@ def validate_output(text: str, case: dict[str, Any] | None = None) -> tuple[list
             errors.append(f"Roster plan spends {total_points} points against a final budget of {final_budget}.")
         elif total_points > final_budget:
             errors.append(f"Roster plan spends {total_points} points against a final budget of {final_budget}.")
-
-    allowed_resolution_values = set(case.get("allowed_resolution_values", []))
-    if allowed_resolution_values:
-        unexpected = set(resolution_values_present) - allowed_resolution_values
-        if unexpected:
-            errors.append(f"Encounter uses resolution values outside the case allowance: {sorted(unexpected)}")
-
-    required_resolution_values = set(case.get("required_resolution_values", []))
-    if required_resolution_values:
-        missing = required_resolution_values - set(resolution_values_present)
-        if missing:
-            errors.append(f"Encounter does not demonstrate all required resolution types: {sorted(missing)}")
 
     if "leader" in roles_present and len(roster_entries) < 2:
         errors.append("Leader encounters should include meaningful allies or support structure.")
@@ -290,14 +275,16 @@ def validate_output(text: str, case: dict[str, Any] | None = None) -> tuple[list
         errors.append("Victory and Failure States must include cost of delay or failure.")
 
     required_handoffs = [
-        "ready for lookup",
-        "ready for adaptation",
-        "ready for unnamed adversary creation",
-        "ready for named adversary creation",
+        "shared adversary context",
+        "named adversary opportunities",
+        "reusable adversary opportunities",
+        "downstream notes",
     ]
     for key in required_handoffs:
         if key not in handoffs:
             errors.append(f"Dependency Handoffs must include `{key}`.")
+        elif not handoffs.get(key, "").strip():
+            errors.append(f"Dependency Handoffs must give a non-empty value for `{key}`.")
 
     return errors, warnings
 
