@@ -32,6 +32,9 @@
 ## Encounter Roster Plan
 
 For `Role: minion`, `Count` means the number of minion groups, where each group is equal to party size unless the plan states otherwise.
+Use legal role pricing: `minion/social/support=1`, `horde/ranged/skulk/standard=2`, `leader=3`, `bruiser=4`, `solo=5`.
+If a medic, helper, or officer is meant to fight like a regular front-line combatant, classify it as `standard` rather than `support`.
+Example: a back-line field medic is `Role: support` and `Points: 1`; a battle surgeon who holds the line is `Role: standard` and `Points: 2`.
 
 - Slot:
   Count:

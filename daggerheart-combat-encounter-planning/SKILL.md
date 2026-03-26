@@ -26,6 +26,7 @@ Use this skill when the user needs a whole combat encounter plan rather than a s
     - what adversary requirements downstream sourcing must satisfy
     Include an explicit `Count` for the slot, use `Points` for the total spend of that slot, and include `Adversary requirements`.
     For `Role: minion`, treat `Count` as the number of party-sized minion groups unless you explicitly state a different group size.
+    Match `Points` to the role cost from the core procedure. In particular, `support` always costs 1 point per adversary; if you want a tougher medic, guard, or helper that fights like a full combatant, classify it as `standard` instead.
     If you include `Acquisition hint`, only use `prefer-existing` or `prefer-new`.
 13. Hand off creation work instead of inventing finished downstream assets inline.
 

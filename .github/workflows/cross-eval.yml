@@ -21,7 +21,7 @@ on:
       max_attempts:
         description: "Maximum alternating attempts before success"
         required: true
-        default: "3"
+        default: "2"
         type: string
       mock_run:
         description: "Use fixture output instead of live model calls"
@@ -119,7 +119,7 @@ jobs:
         run: python3 scripts/render_cross_eval_fixtures.py "${{ inputs.scenario }}"
 
       - name: Validate supported attempt count
-        run: test "${{ inputs.max_attempts }}" -ge 1 && test "${{ inputs.max_attempts }}" -le 3
+        run: test "${{ inputs.max_attempts }}" -ge 1 && test "${{ inputs.max_attempts }}" -le 2
 
       - name: Prepare cross-eval prompts
         run: |
@@ -211,60 +211,11 @@ jobs:
           name: cross-eval-attempt-02
           path: cross-eval/attempt-02-claude-by-codex/**
 
-  codex-attempt-3:
-    if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 3 }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Verify OpenAI secret
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: test -n "$OPENAI_API_KEY"
-
-      - name: Refresh checked-in fixtures
-        run: python3 scripts/render_cross_eval_fixtures.py "${{ inputs.scenario }}"
-
-      - name: Prepare cross-eval prompts
-        run: |
-          python3 scripts/run_cross_eval_session.py \
-            --scenario "${{ inputs.scenario }}" \
-            --output-root cross-eval \
-            --codex-model "${{ inputs.codex_model }}" \
-            --claude-model "${{ inputs.claude_model }}" \
-            --max-attempts "${{ inputs.max_attempts }}" \
-            --prepare-only
-
-      - name: Attempt 3 generate with Codex
-        uses: openai/codex-action@v1
-        with:
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          prompt-file: cross-eval/attempt-03-codex-by-claude/prompts/codex-generate.txt
-          output-file: cross-eval/attempt-03-codex-by-claude/outputs/codex-generated.md
-          working-directory: .
-          sandbox: read-only
-          codex-args: --model ${{ inputs.codex_model }}
-
-      - name: Upload attempt 3 artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: cross-eval-attempt-03
-          path: cross-eval/attempt-03-codex-by-claude/**
-
   evaluate-cross-eval:
     if: ${{ !inputs.mock_run }}
     needs:
       - codex-attempt-1
       - claude-attempt-2
-      - codex-attempt-3
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -313,13 +264,6 @@ jobs:
         with:
           name: cross-eval-attempt-02
           path: cross-eval/attempt-02-claude-by-codex
-
-      - name: Download attempt 3 artifact
-        if: ${{ fromJSON(inputs.max_attempts) >= 3 }}
-        uses: actions/download-artifact@v4
-        with:
-          name: cross-eval-attempt-03
-          path: cross-eval/attempt-03-codex-by-claude
 
       - name: Evaluate generated outputs
         id: cross_eval_live

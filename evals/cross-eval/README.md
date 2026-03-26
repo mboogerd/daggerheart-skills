@@ -8,8 +8,6 @@ The cross-eval flow runs a checked-in user request through alternating coding-ag
 
 - attempt 1: Codex generates and Claude judges
 - attempt 2: Claude generates and Codex judges
-- attempt 3: Codex generates and Claude judges again
-
 The run stops on the first failure so it does not waste spend once a regression is found.
 
 Each generated output is still checked with the local deterministic validator so the LLM judge is not the only source of truth.
@@ -86,7 +84,21 @@ bash scripts/run_cross_eval_local.sh
 Useful options:
 
 - `--scenario <path>`
-- `--max-attempts 3`
+- `--max-attempts 2`
+- `--lane claude-by-codex --attempt-number 2`
+
+If one lane is failing and you want to rerun only that lane locally, use:
+
+```bash
+bash scripts/run_cross_eval_local.sh --scenario evals/cross-eval/scenarios/tier1_bridge_defense.json --lane claude-by-codex --attempt-number 2
+```
+
+Accepted lane names are:
+
+- `codex-by-claude`
+- `claude-by-codex`
+- `codex-gen-claude-judge`
+- `claude-gen-codex-judge`
 
 ## GitHub-Like Local Flow
 

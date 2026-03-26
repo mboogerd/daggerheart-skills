@@ -50,6 +50,13 @@ Every roster slot should also include clear adversary requirements that a downst
 
 `Acquisition hint` is optional. If used, keep it lightweight and only use `prefer-existing` or `prefer-new`.
 
+When choosing between `support` and `standard`, use `support` for fragile enabling pieces whose main job is healing, buffing, debuffing, or battlefield help. If the adversary is meant to hold space, trade blows, or survive front-line pressure like a regular combatant, use `standard` and price it at 2 points instead.
+
+Practical example:
+
+- back-line field medic: `Role support`, `Points 1`
+- armored battle surgeon who fights in the line: `Role standard`, `Points 2`
+
 ## Composition Rule
 
 The encounter should ask more than one tactical question.

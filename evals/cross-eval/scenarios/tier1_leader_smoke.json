@@ -2,7 +2,7 @@
   "id": "tier1_leader_smoke",
   "suite": "adversary-creation",
   "skill_path": "daggerheart-adversary-creation/SKILL.md",
-  "max_attempts": 3,
+  "max_attempts": 2,
   "prompt": "Create a tier 1 leader for a disciplined militia faction.",
   "expected_tier": 1,
   "expected_role": "leader",

@@ -66,6 +66,17 @@ def build_attempt_plan(max_attempts: int) -> list[tuple[str, str]]:
     return plan
 
 
+def parse_lane(value: str) -> tuple[str, str]:
+    normalized = value.strip().lower().replace("_", "-")
+    if normalized in {"codex-by-claude", "codex-gen-claude-judge"}:
+        return ("codex", "claude")
+    if normalized in {"claude-by-codex", "claude-gen-codex-judge"}:
+        return ("claude", "codex")
+    raise SystemExit(
+        "--lane must be one of: codex-by-claude, claude-by-codex, codex-gen-claude-judge, claude-gen-codex-judge."
+    )
+
+
 def prepare_attempt_files(
     *,
     attempt_number: int,
@@ -550,6 +561,8 @@ def main() -> int:
     parser.add_argument("--codex-model", default="gpt-5-codex")
     parser.add_argument("--claude-model", default="claude-sonnet-4-20250514")
     parser.add_argument("--max-attempts", type=int)
+    parser.add_argument("--lane")
+    parser.add_argument("--attempt-number", type=int, default=1)
     parser.add_argument("--mock", action="store_true")
     parser.add_argument("--mock-fail-attempt", type=int)
     parser.add_argument("--prepare-only", action="store_true")
@@ -570,12 +583,24 @@ def main() -> int:
     output_root = args.output_root
     output_root.mkdir(parents=True, exist_ok=True)
 
-    requested_attempts = args.max_attempts or int(scenario.get("max_attempts", 3))
-    if requested_attempts < 1:
-        raise SystemExit("--max-attempts must be at least 1.")
+    if args.lane and args.max_attempts is not None:
+        raise SystemExit("--lane cannot be combined with --max-attempts.")
+    if args.attempt_number < 1:
+        raise SystemExit("--attempt-number must be at least 1.")
+
+    if args.lane:
+        attempt_plan = [parse_lane(args.lane)]
+        requested_attempts = 1
+        attempt_numbers = [args.attempt_number]
+    else:
+        requested_attempts = args.max_attempts or int(scenario.get("max_attempts", 3))
+        if requested_attempts < 1:
+            raise SystemExit("--max-attempts must be at least 1.")
+        attempt_plan = build_attempt_plan(requested_attempts)
+        attempt_numbers = list(range(1, requested_attempts + 1))
 
     if args.prepare_only:
-        for attempt_number, (generator, judge_provider) in enumerate(build_attempt_plan(requested_attempts), start=1):
+        for attempt_number, (generator, judge_provider) in zip(attempt_numbers, attempt_plan, strict=True):
             prepare_attempt_files(
                 attempt_number=attempt_number,
                 generator=generator,
@@ -603,7 +628,7 @@ def main() -> int:
     attempts: list[dict[str, Any]] = []
     stop_reason = "completed_requested_attempts"
 
-    for attempt_number, (generator, judge_provider) in enumerate(build_attempt_plan(requested_attempts), start=1):
+    for attempt_number, (generator, judge_provider) in zip(attempt_numbers, attempt_plan, strict=True):
         attempt_report = run_attempt(
             attempt_number=attempt_number,
             generator=generator,

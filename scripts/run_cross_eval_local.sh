@@ -7,7 +7,9 @@ OUTPUT_ROOT="$ROOT_DIR/cross-eval"
 JUNIT_XML="$ROOT_DIR/test-results/cross-eval.junit.xml"
 CODEX_MODEL="gpt-5-codex"
 CLAUDE_MODEL="claude-sonnet-4-20250514"
-MAX_ATTEMPTS="3"
+MAX_ATTEMPTS="2"
+LANE=""
+ATTEMPT_NUMBER="1"
 MODE="live"
 
 usage() {
@@ -28,10 +30,13 @@ Options:
   --codex-model MODEL
   --claude-model MODEL
   --max-attempts N
+  --lane codex-by-claude|claude-by-codex
+  --attempt-number N
   -h, --help
 
 Examples:
   scripts/run_cross_eval_local.sh
+  scripts/run_cross_eval_local.sh --lane claude-by-codex --attempt-number 2
   scripts/run_cross_eval_local.sh mock
   scripts/run_cross_eval_local.sh prepare --output-root /tmp/cross-eval-local
   scripts/run_cross_eval_local.sh evaluate --output-root /tmp/cross-eval-local
@@ -77,6 +82,14 @@ while [[ $# -gt 0 ]]; do
       MAX_ATTEMPTS="$2"
       shift 2
       ;;
+    --lane)
+      LANE="$2"
+      shift 2
+      ;;
+    --attempt-number)
+      ATTEMPT_NUMBER="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -97,8 +110,13 @@ COMMON_ARGS=(
   --junit-xml "$JUNIT_XML"
   --codex-model "$CODEX_MODEL"
   --claude-model "$CLAUDE_MODEL"
-  --max-attempts "$MAX_ATTEMPTS"
 )
+
+if [[ -n "$LANE" ]]; then
+  COMMON_ARGS+=(--lane "$LANE" --attempt-number "$ATTEMPT_NUMBER")
+else
+  COMMON_ARGS+=(--max-attempts "$MAX_ATTEMPTS")
+fi
 
 case "$MODE" in
   live)

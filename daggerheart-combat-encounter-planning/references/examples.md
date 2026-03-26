@@ -19,6 +19,12 @@
 - Escalation: if the Leader survives three beats, the gate closes and retreat becomes harder
 - Handoffs: named commander opportunity; reusable guards from an existing pool; support role can be sourced later from the same faction
 
+## Example 2a: Medic Classification
+
+- If the battlefield healer mainly patches wounds, removes conditions, or keeps allies moving from the back line, use Count 1, Role Support, Points 1
+- If the "medic" is really an armored field officer who heals while also holding the line, use Count 1, Role Standard, Points 2
+- Do not write Count 1, Role Support, Points 2. That is an illegal role-price combination.
+
 ## Example 3: Environmental Crisis Battle
 
 - Narrative function: stop a ritual while surviving the battlefield
