@@ -3,13 +3,18 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
-import json
 import sys
 import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
+from skill_test_suites import (
+    list_output_case_suites,
+    load_output_cases,
+    resolve_sample_output_path,
+    validate_skill_output,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -34,11 +39,6 @@ def load_module(path: Path, module_name: str):
 
 
 DESCRIPTION_MODULE = load_module(ROOT / "scripts" / "check-description-length.py", "check_description_length")
-VALIDATOR_MODULE = load_module(ROOT / "scripts" / "validate-adversary-creation.py", "validate_adversary_creation")
-ENCOUNTER_VALIDATOR_MODULE = load_module(
-    ROOT / "scripts" / "validate-combat-encounter-planning.py",
-    "validate_combat_encounter_planning",
-)
 
 
 def check_skill_layout() -> list[CaseResult]:
@@ -94,66 +94,34 @@ def check_description_length() -> list[CaseResult]:
     return results
 
 
-def check_adversary_creation_cases() -> list[CaseResult]:
-    case_file = ROOT / "evals" / "adversary-creation.output-cases.json"
-    payload = json.loads(case_file.read_text())
+def check_skill_output_cases() -> list[CaseResult]:
     results: list[CaseResult] = []
 
-    for case in payload:
-        sample = case.get("sample_output")
-        if not sample:
-            continue
+    for suite in list_output_case_suites():
+        for case in load_output_cases(suite.name):
+            sample = case.get("sample_output")
+            if not sample:
+                continue
 
-        sample_path = ROOT / Path(sample).relative_to("skills")
-        errors, warnings = VALIDATOR_MODULE.validate_output(
-            sample_path.read_text(),
-            expected_tier=case.get("expected_tier"),
-            expected_role=case.get("expected_role"),
-        )
-
-        details_parts = [f"sample={sample_path.relative_to(ROOT)}"]
-        if warnings:
-            details_parts.extend(f"warning: {warning}" for warning in warnings)
-
-        results.append(
-            CaseResult(
-                suite="adversary-creation-evals",
-                name=case["id"],
-                failure="\n".join(errors) if errors else None,
-                details="\n".join(details_parts),
+            sample_path = resolve_sample_output_path(sample)
+            errors, warnings = validate_skill_output(
+                suite.name,
+                sample_path.read_text(),
+                case,
             )
-        )
-    return results
 
+            details_parts = [f"sample={sample_path.relative_to(ROOT)}"]
+            if warnings:
+                details_parts.extend(f"warning: {warning}" for warning in warnings)
 
-def check_combat_encounter_planning_cases() -> list[CaseResult]:
-    case_file = ROOT / "evals" / "combat-encounter-planning.output-cases.json"
-    payload = json.loads(case_file.read_text())
-    results: list[CaseResult] = []
-
-    for case in payload:
-        sample = case.get("sample_output")
-        if not sample:
-            continue
-
-        sample_path = ROOT / Path(sample).relative_to("skills")
-        errors, warnings = ENCOUNTER_VALIDATOR_MODULE.validate_output(
-            sample_path.read_text(),
-            case,
-        )
-
-        details_parts = [f"sample={sample_path.relative_to(ROOT)}"]
-        if warnings:
-            details_parts.extend(f"warning: {warning}" for warning in warnings)
-
-        results.append(
-            CaseResult(
-                suite="combat-encounter-planning-evals",
-                name=case["id"],
-                failure="\n".join(errors) if errors else None,
-                details="\n".join(details_parts),
+            results.append(
+                CaseResult(
+                    suite=suite.ci_suite_name,
+                    name=case["id"],
+                    failure="\n".join(errors) if errors else None,
+                    details="\n".join(details_parts),
+                )
             )
-        )
     return results
 
 
@@ -213,8 +181,7 @@ def main() -> int:
     results: list[CaseResult] = []
     time_results(results, check_skill_layout)
     time_results(results, check_description_length)
-    time_results(results, check_adversary_creation_cases)
-    time_results(results, check_combat_encounter_planning_cases)
+    time_results(results, check_skill_output_cases)
 
     write_junit_xml(results, args.junit_xml)
 

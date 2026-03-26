@@ -2,6 +2,12 @@
 
 This directory holds light evaluation fixtures for the Daggerheart skill suite.
 
+## Responsibility Split
+
+- The evaluation framework is the thin executor: it runs scenarios, alternates lanes, records artifacts, and publishes reports.
+- The skill test suites define what each skill must satisfy: deterministic validators, output cases, fixtures, and verification properties.
+- Keep those responsibilities separate as the repo grows.
+
 ## Trigger Evaluation
 
 Use `trigger-queries.sample.json` as a starting point for should-trigger and should-not-trigger queries. Copy it and expand it per skill.
@@ -44,6 +50,8 @@ For combat encounter planning, use:
 
 - `scripts/validate-adversary-creation.py --case-file skills/evals/adversary-creation.output-cases.json`
 - `scripts/validate-adversary-creation.py <markdown-file>`
+- `scripts/validate-combat-encounter-planning.py --case-file skills/evals/combat-encounter-planning.output-cases.json`
+- `scripts/validate-combat-encounter-planning.py <markdown-file>`
 
 ## Cross-Eval
 
@@ -59,3 +67,5 @@ Use `evals/cross-eval/` for agent-vs-agent evaluations that:
 Local smoke test:
 
 - `python3 scripts/run_cross_eval_session.py --mock`
+
+Suite-specific test logic is shared through `scripts/skill_test_suites.py`, while the runner scripts stay focused on execution.

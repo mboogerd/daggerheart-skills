@@ -2,12 +2,10 @@
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import os
 import shutil
 import subprocess
-import sys
 import textwrap
 import time
 import xml.etree.ElementTree as ET
@@ -16,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from cross_eval_models import load_verification_properties
+from skill_test_suites import validate_skill_output
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,23 +22,6 @@ DEFAULT_SCENARIO = ROOT / "evals" / "cross-eval" / "scenarios" / "tier1_leader_s
 DEFAULT_OUTPUT_ROOT = ROOT / "cross-eval"
 DEFAULT_JUNIT_XML = ROOT / "test-results" / "cross-eval.junit.xml"
 FIXTURE_ROOT = ROOT / "evals" / "cross-eval" / "fixtures"
-
-
-def load_module(path: Path, module_name: str):
-    spec = importlib.util.spec_from_file_location(module_name, path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Unable to load module from {path}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-VALIDATOR_MODULE = load_module(ROOT / "scripts" / "validate-adversary-creation.py", "validate_adversary_creation")
-COMBAT_VALIDATOR_MODULE = load_module(
-    ROOT / "scripts" / "validate-combat-encounter-planning.py",
-    "validate_combat_encounter_planning",
-)
 
 
 @dataclass
@@ -265,21 +247,6 @@ def failure_judge_payload(summary: str, issue: str) -> dict[str, Any]:
     }
 
 
-def validate_candidate(text: str, properties: dict[str, Any]) -> tuple[list[str], list[str]]:
-    if properties["suite"] == "adversary-creation":
-        return VALIDATOR_MODULE.validate_output(
-            text,
-            expected_tier=properties["expected_tier"],
-            expected_role=properties["expected_role"],
-        )
-    if properties["suite"] == "combat-encounter-planning":
-        return COMBAT_VALIDATOR_MODULE.validate_output(
-            text,
-            properties,
-        )
-    raise ValueError(f"Unsupported suite: {properties['suite']}")
-
-
 def materialize_mock_generation(sample_path: Path, output_path: Path) -> None:
     output_path.write_text(sample_path.read_text())
 
@@ -471,7 +438,7 @@ def run_attempt(
             )
 
     generated_text = generated_output_path.read_text()
-    errors, warnings = validate_candidate(generated_text, properties)
+    errors, warnings = validate_skill_output(properties["suite"], generated_text, properties)
     deterministic = {
         "status": "passed" if not errors else "failed",
         "pass": not errors,

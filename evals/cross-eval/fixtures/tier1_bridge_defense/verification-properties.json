@@ -42,11 +42,11 @@
     "create-named"
   ],
   "allowed_resolution_values": [
-    "create-named",
-    "create-unnamed",
+    "lookup-existing-named",
     "lookup-existing-unnamed",
+    "create-unnamed",
     "adapt-existing",
-    "lookup-existing-named"
+    "create-named"
   ],
   "judge_focus": [
     "Check that the output follows the required encounter-plan structure.",
