@@ -40,6 +40,10 @@ Spend rates:
 
 When writing the final encounter plan, use numeric digits for party size, tier, budgets, and roster point values.
 
+Every roster slot should include an explicit count.
+
+If one roster slot represents multiple adversaries of the same role, set `Count` to that quantity and set the point value to the total spend for that grouped slot.
+
 ## Composition Rule
 
 The encounter should ask more than one tactical question.

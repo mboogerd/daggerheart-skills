@@ -11,7 +11,9 @@
     "Return only the completed encounter plan.",
     "Use the exact section headings and bullet-oriented structure from the template.",
     "Use numeric digits for Tier, Party size, Starting budget, Final budget, and each roster Points value.",
+    "Every roster slot must include Count as an integer quantity.",
     "Use legal role costs only: minion/social/support=1, horde/ranged/skulk/standard=2, leader=3, bruiser=4, solo=5.",
+    "Use Points for the total spend of that roster slot: Count multiplied by the role cost.",
     "Keep the encounter at the orchestration layer rather than generating full downstream adversary stat blocks.",
     "Make roster resolutions explicit.",
     "Do not wrap the answer in code fences.",
@@ -40,11 +42,11 @@
     "create-named"
   ],
   "allowed_resolution_values": [
+    "create-named",
     "create-unnamed",
     "lookup-existing-unnamed",
-    "create-named",
-    "lookup-existing-named",
-    "adapt-existing"
+    "adapt-existing",
+    "lookup-existing-named"
   ],
   "judge_focus": [
     "Check that the output follows the required encounter-plan structure.",

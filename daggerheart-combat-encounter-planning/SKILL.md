@@ -25,6 +25,7 @@ Use this skill when the user needs a whole combat encounter plan rather than a s
     - adapted from an existing adversary
     - created as a new unnamed adversary
     - created as a new named adversary
+    Include an explicit `Count` for the slot and use `Points` for the total spend of that slot.
 13. Hand off creation work instead of inventing finished downstream assets inline.
 
 ## Delegation

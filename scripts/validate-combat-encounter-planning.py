@@ -203,6 +203,13 @@ def validate_output(text: str, case: dict[str, Any] | None = None) -> tuple[list
     roles_present: list[str] = []
     resolution_values_present: list[str] = []
     for index, entry in enumerate(roster_entries, start=1):
+        count = parse_int(entry.get("count", ""))
+        if count is None:
+            errors.append(f"Roster slot {index} is missing numeric Count.")
+            count = 1
+        elif count < 1:
+            errors.append(f"Roster slot {index} must have Count 1 or greater.")
+
         role = entry.get("role", "").strip().lower()
         if not role:
             errors.append(f"Roster slot {index} is missing Role.")
@@ -217,7 +224,7 @@ def validate_output(text: str, case: dict[str, Any] | None = None) -> tuple[list
             errors.append(f"Roster slot {index} is missing numeric Points.")
         else:
             total_points += points
-            expected_cost = ROLE_POINT_COSTS[role]
+            expected_cost = ROLE_POINT_COSTS[role] * count
             if points != expected_cost:
                 errors.append(f"Roster slot {index} has {points} points, but role `{role}` should cost {expected_cost}.")
 

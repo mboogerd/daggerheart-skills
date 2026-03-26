@@ -32,6 +32,7 @@
 ## Encounter Roster Plan
 
 - Slot:
+  Count:
   Role:
   Points:
   Scene job:

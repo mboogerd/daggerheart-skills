@@ -32,54 +32,54 @@
 ## Encounter Roster Plan
 
 - Slot: Bridge line militia
+  Count: 1
   Role: standard
   Points: 2
   Scene job: Hold the center of the bridge and stop PCs from freely repositioning.
   Resolution: create-unnamed
   Notes: These should read as disciplined deserters with shield-and-polearm pressure.
 - Slot: Flanking bow militia
+  Count: 1
   Role: ranged
   Points: 2
   Scene job: Punish PCs who leave cover and force attention away from the bridge mouth.
   Resolution: adapt-existing
   Notes: Adapt from an existing guard or militia-style ranged stat block if available.
 - Slot: Deserter sergeant
+  Count: 1
   Role: leader
   Points: 3
   Scene job: Coordinate the push, rally allies, and signal when the line surges.
   Resolution: create-named
   Notes: The sergeant should only shine while allied militia remain in play.
 - Slot: Supply-grab skirmishers
+  Count: 1
   Role: skulk
   Points: 2
   Scene job: Slip along the riverbank and threaten carts, villagers, or the backline.
   Resolution: lookup-existing-unnamed
   Notes: Prefer an existing bandit or scout-style skulk if one is already in the database.
 - Slot: Desperate rabble
+  Count: 2
   Role: minion
-  Points: 1
-  Scene job: Create panic and scale without adding much bookkeeping.
+  Points: 2
+  Scene job: Create panic, scale the encounter, and pressure both the bridge deck and wagon line without adding much bookkeeping.
   Resolution: lookup-existing-unnamed
-  Notes: Use a minion group equal to party size.
+  Notes: Use two fictionally distinct minion groups, each equal to party size.
 - Slot: Wagon-pushers
+  Count: 1
   Role: support
   Points: 1
   Scene job: Clear space, drag barricades, and make the bridge assault feel coordinated.
   Resolution: create-unnamed
   Notes: This support should buff movement or reposition allies instead of dealing heavy damage.
 - Slot: Mud-bank swarm
+  Count: 1
   Role: horde
   Points: 2
   Scene job: Pressure any PC who drops off the bridge to fight on the slippery riverbank.
   Resolution: create-unnamed
   Notes: This keeps the fallback ground dangerous instead of safe.
-- Slot: Panic-starters
-  Role: minion
-  Points: 1
-  Scene job: Slip through gaps, overturn carts, and accelerate the sense of chaos around the evacuation.
-  Resolution: create-unnamed
-  Notes: Keep this second minion group fictionally distinct from the bridge line rabble.
-
 ## Environment Plan
 
 - Environment type: Traversal
