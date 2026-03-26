@@ -80,15 +80,15 @@ def parse_lane(value: str) -> tuple[str, str]:
 def prepare_attempt_files(
     *,
     attempt_number: int,
-    generator: str,
-    judge_provider: str,
+    skill_llm_provider: str,
+    judge_llm_provider: str,
     request_path: Path,
     properties_path: Path,
     request_text: str,
     properties: dict[str, Any],
     output_root: Path,
 ) -> dict[str, Path]:
-    attempt_dir = output_root / f"attempt-{attempt_number:02d}-{generator}-by-{judge_provider}"
+    attempt_dir = output_root / f"attempt-{attempt_number:02d}-{skill_llm_provider}-by-{judge_llm_provider}"
     inputs_dir = attempt_dir / "inputs"
     prompts_dir = attempt_dir / "prompts"
     outputs_dir = attempt_dir / "outputs"
@@ -101,11 +101,11 @@ def prepare_attempt_files(
     shutil.copyfile(request_path, copied_request_path)
     shutil.copyfile(properties_path, copied_properties_path)
 
-    generation_prompt_path = prompts_dir / f"{generator}-generate.txt"
-    generated_output_path = outputs_dir / f"{generator}-generated.md"
-    judge_prompt_path = prompts_dir / f"{judge_provider}-judge-{generator}.txt"
-    judge_output_path = outputs_dir / f"{judge_provider}-judge-{generator}.json"
-    judge_metadata_path = outputs_dir / f"{judge_provider}-judge-{generator}.meta.json"
+    generation_prompt_path = prompts_dir / f"{skill_llm_provider}-generate.txt"
+    generated_output_path = outputs_dir / f"{skill_llm_provider}-generated.md"
+    judge_prompt_path = prompts_dir / f"{judge_llm_provider}-judge-{skill_llm_provider}.txt"
+    judge_output_path = outputs_dir / f"{judge_llm_provider}-judge-{skill_llm_provider}.json"
+    judge_metadata_path = outputs_dir / f"{judge_llm_provider}-judge-{skill_llm_provider}.meta.json"
 
     generation_prompt = build_generation_prompt(properties, request_text)
     write_text(generation_prompt_path, generation_prompt)
@@ -183,6 +183,14 @@ def run_anthropic_generation(prompt: str, *, model: str, output_path: Path, log_
     if result.stdout_path.exists():
         output_path.write_text(result.stdout_path.read_text())
     return result
+
+
+def model_for_provider(provider: str, *, openai_model: str, anthropic_model: str) -> str:
+    if provider == "openai":
+        return openai_model
+    if provider == "anthropic":
+        return anthropic_model
+    raise ValueError(f"Unsupported provider: {provider}")
 
 
 def build_generation_prompt(properties: dict[str, Any], user_request: str) -> str:
@@ -301,7 +309,7 @@ def write_junit_xml(path: Path, report: dict[str, Any]) -> None:
                 suite,
                 "testcase",
                 classname=suite_name,
-                name=f"attempt-{attempt['attempt']:02d}-{attempt['generator']}",
+                name=f"attempt-{attempt['attempt']:02d}-{attempt['skill_llm_provider']}",
                 time="0.0",
             )
             if entry.get("status") == "not_run":
@@ -330,15 +338,15 @@ def write_summary(path: Path, report: dict[str, Any]) -> None:
         f"- User request fixture: `{report['request_path']}`",
         f"- Verification properties: `{report['properties_path']}`",
         "",
-        "| Attempt | Generator | Judge | Deterministic | Judge | Overall | Stop reason |",
+        "| Attempt | Skill LLM | Judge LLM | Deterministic | Judge | Overall | Stop reason |",
         "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     for attempt in report["attempts"]:
         lines.append(
-            "| {attempt} | {generator} | {judge} | {det} | {judge_status} | {overall} | {stop_reason} |".format(
+            "| {attempt} | {skill_llm_provider} | {judge_llm_provider} | {det} | {judge_status} | {overall} | {stop_reason} |".format(
                 attempt=attempt["attempt"],
-                generator=attempt["generator"],
-                judge=attempt["judge_provider"],
+                skill_llm_provider=attempt["skill_llm_provider"],
+                judge_llm_provider=attempt["judge_llm_provider"],
                 det="pass" if attempt["deterministic"]["pass"] else "fail",
                 judge_status="skipped" if attempt["judge"]["status"] == "not_run" else ("pass" if attempt["judge"]["pass"] else "fail"),
                 overall="pass" if attempt["overall_pass"] else "fail",
@@ -348,8 +356,13 @@ def write_summary(path: Path, report: dict[str, Any]) -> None:
     lines.append("")
 
     for attempt in report["attempts"]:
-        lines.append(f"## Attempt {attempt['attempt']}: {attempt['generator']} generated, {attempt['judge_provider']} judged")
+        lines.append(
+            f"## Attempt {attempt['attempt']}: {attempt['skill_llm_provider']} generated, {attempt['judge_llm_provider']} judged"
+        )
         lines.append("")
+        lines.append(f"- Skill model: `{attempt['skill_model']}`")
+        if attempt.get("judge_model"):
+            lines.append(f"- Judge model: `{attempt['judge_model']}`")
         lines.append(f"- Prompt source: `{attempt['generation_prompt_path']}`")
         lines.append(f"- Output file: `{attempt['generated_output_path']}`")
         lines.append(f"- Deterministic result: `{'pass' if attempt['deterministic']['pass'] else 'fail'}`")
@@ -376,8 +389,8 @@ def write_summary(path: Path, report: dict[str, Any]) -> None:
 def run_attempt(
     *,
     attempt_number: int,
-    generator: str,
-    judge_provider: str,
+    skill_llm_provider: str,
+    judge_llm_provider: str,
     scenario: dict[str, Any],
     properties: dict[str, Any],
     request_path: Path,
@@ -392,8 +405,8 @@ def run_attempt(
 ) -> dict[str, Any]:
     paths = prepare_attempt_files(
         attempt_number=attempt_number,
-        generator=generator,
-        judge_provider=judge_provider,
+        skill_llm_provider=skill_llm_provider,
+        judge_llm_provider=judge_llm_provider,
         request_path=request_path,
         properties_path=properties_path,
         request_text=request_text,
@@ -410,6 +423,8 @@ def run_attempt(
     judge_output_path = paths["judge_output_path"]
     judge_metadata_path = paths["judge_metadata_path"]
     generation_prompt = generation_prompt_path.read_text()
+    skill_model = model_for_provider(skill_llm_provider, openai_model=openai_model, anthropic_model=anthropic_model)
+    judge_model: str | None = None
 
     if mock:
         materialize_mock_generation(ROOT / scenario["sample_output"], generated_output_path)
@@ -419,25 +434,25 @@ def run_attempt(
         if not generated_output_path.exists():
             raise SystemExit(f"Missing pre-generated output for attempt {attempt_number}: {generated_output_path}")
     else:
-        if generator == "openai":
+        if skill_llm_provider == "openai":
             generation_result = run_openai_generation(
                 generation_prompt,
-                model=openai_model,
+                model=skill_model,
                 output_path=generated_output_path,
-                log_prefix=outputs_dir / f"{generator}-generate",
+                log_prefix=outputs_dir / f"{skill_llm_provider}-generate",
             )
         else:
             generation_result = run_anthropic_generation(
                 generation_prompt,
-                model=anthropic_model,
+                model=skill_model,
                 output_path=generated_output_path,
-                log_prefix=outputs_dir / f"{generator}-generate",
+                log_prefix=outputs_dir / f"{skill_llm_provider}-generate",
             )
         if generation_result is not None and not generation_result.ok and not generated_output_path.exists():
             generated_output_path.write_text(
                 textwrap.dedent(
                     f"""
-                    {generator} generation failed.
+                    {skill_llm_provider} generation failed.
 
                     {generation_result.error or "Unknown error"}.
                     See:
@@ -481,7 +496,7 @@ def run_attempt(
             properties_path=copied_properties_path,
             request_text=request_text,
             properties=properties,
-            candidate_name=generator,
+            candidate_name=skill_llm_provider,
             candidate_output=generated_text,
         )
         write_text(judge_prompt_path, judge_prompt)
@@ -493,15 +508,15 @@ def run_attempt(
             )
             write_text(
                 judge_metadata_path,
-                json.dumps({"provider": judge_provider, "mode": "mock"}, indent=2) + "\n",
+                json.dumps({"provider": judge_llm_provider, "mode": "mock"}, indent=2) + "\n",
             )
         else:
             from structured_judge import judge_with_pydantic_ai
 
-            judge_model = anthropic_model if judge_provider == "anthropic" else openai_model
+            judge_model = model_for_provider(judge_llm_provider, openai_model=openai_model, anthropic_model=anthropic_model)
             try:
                 judge_payload, judge_metadata = judge_with_pydantic_ai(
-                    provider=judge_provider,
+                    provider=judge_llm_provider,
                     model=judge_model,
                     prompt=judge_prompt,
                 )
@@ -509,7 +524,7 @@ def run_attempt(
                 write_text(judge_metadata_path, json.dumps(judge_metadata, indent=2) + "\n")
             except Exception as exc:
                 judge_payload = failure_judge_payload(
-                    f"{judge_provider.title()} judge execution failed.",
+                    f"{judge_llm_provider.title()} judge execution failed.",
                     str(exc),
                 )
                 write_text(
@@ -518,7 +533,7 @@ def run_attempt(
                 )
                 write_text(
                     judge_metadata_path,
-                    json.dumps({"provider": judge_provider, "model": judge_model, "error": str(exc)}, indent=2) + "\n",
+                    json.dumps({"provider": judge_llm_provider, "model": judge_model, "error": str(exc)}, indent=2) + "\n",
                 )
 
         judge_result = {
@@ -538,8 +553,10 @@ def run_attempt(
 
     attempt_report = {
         "attempt": attempt_number,
-        "generator": generator,
-        "judge_provider": judge_provider,
+        "skill_llm_provider": skill_llm_provider,
+        "skill_model": skill_model,
+        "judge_llm_provider": judge_llm_provider,
+        "judge_model": judge_model,
         "generation_prompt_path": display_path(generation_prompt_path),
         "generated_output_path": display_path(generated_output_path),
         "judge_output_path": display_path(judge_output_path),
@@ -602,11 +619,11 @@ def main() -> int:
         attempt_numbers = list(range(1, requested_attempts + 1))
 
     if args.prepare_only:
-        for attempt_number, (generator, judge_provider) in zip(attempt_numbers, attempt_plan, strict=True):
+        for attempt_number, (skill_llm_provider, judge_llm_provider) in zip(attempt_numbers, attempt_plan, strict=True):
             prepare_attempt_files(
                 attempt_number=attempt_number,
-                generator=generator,
-                judge_provider=judge_provider,
+                skill_llm_provider=skill_llm_provider,
+                judge_llm_provider=judge_llm_provider,
                 request_path=request_path,
                 properties_path=properties_path,
                 request_text=request_text,
@@ -630,11 +647,11 @@ def main() -> int:
     attempts: list[dict[str, Any]] = []
     stop_reason = "completed_requested_attempts"
 
-    for attempt_number, (generator, judge_provider) in zip(attempt_numbers, attempt_plan, strict=True):
+    for attempt_number, (skill_llm_provider, judge_llm_provider) in zip(attempt_numbers, attempt_plan, strict=True):
         attempt_report = run_attempt(
             attempt_number=attempt_number,
-            generator=generator,
-            judge_provider=judge_provider,
+            skill_llm_provider=skill_llm_provider,
+            judge_llm_provider=judge_llm_provider,
             scenario=scenario,
             properties=properties,
             request_path=request_path,
