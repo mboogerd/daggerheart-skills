@@ -4,10 +4,10 @@ This directory holds the fixture-driven agent-vs-agent evaluation scaffold for t
 
 ## What It Does
 
-The cross-eval flow runs a checked-in user request through alternating coding-agent lanes:
+The cross-eval flow runs a checked-in user request through alternating provider lanes:
 
-- attempt 1: Codex generates and Claude judges
-- attempt 2: Claude generates and Codex judges
+- attempt 1: OpenAI generates and Anthropic judges
+- attempt 2: Anthropic generates and OpenAI judges
 The run stops on the first failure so it does not waste spend once a regression is found.
 
 Each generated output is still checked with the local deterministic validator so the LLM judge is not the only source of truth.
@@ -85,20 +85,24 @@ Useful options:
 
 - `--scenario <path>`
 - `--max-attempts 2`
-- `--lane claude-by-codex --attempt-number 2`
+- `--openai-model gpt-5.4-nano`
+- `--anthropic-model claude-haiku-4-5-20251001`
+- `--lane anthropic-by-openai --attempt-number 2`
 
 If one lane is failing and you want to rerun only that lane locally, use:
 
 ```bash
-bash scripts/run_cross_eval_local.sh --scenario evals/cross-eval/scenarios/tier1_bridge_defense.json --lane claude-by-codex --attempt-number 2
+bash scripts/run_cross_eval_local.sh --scenario evals/cross-eval/scenarios/tier1_bridge_defense.json --lane anthropic-by-openai --attempt-number 2
 ```
 
 Accepted lane names are:
 
-- `codex-by-claude`
-- `claude-by-codex`
-- `codex-gen-claude-judge`
-- `claude-gen-codex-judge`
+- `openai-by-anthropic`
+- `anthropic-by-openai`
+- `openai-gen-anthropic-judge`
+- `anthropic-gen-openai-judge`
+
+The older `codex-*` and `claude-*` lane aliases still work for compatibility, but provider names are preferred.
 
 ## GitHub-Like Local Flow
 

@@ -24,10 +24,10 @@ def judge_with_pydantic_ai(*, provider: str, model: str, prompt: str) -> tuple[d
     from pydantic_ai.models.anthropic import AnthropicModel
     from pydantic_ai.models.openai import OpenAIResponsesModel
 
-    if provider == "claude":
+    if provider == "anthropic":
         provider_model = AnthropicModel(model)
         provider_model_name = f"anthropic:{model}"
-    elif provider == "codex":
+    elif provider == "openai":
         provider_model = OpenAIResponsesModel(model)
         provider_model_name = f"openai-responses:{model}"
     else:

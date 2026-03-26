@@ -8,15 +8,15 @@ on:
         required: true
         default: "evals/cross-eval/scenarios/tier1_leader_smoke.json"
         type: string
-      codex_model:
-        description: "Codex model"
+      openai_model:
+        description: "OpenAI model"
         required: true
-        default: "gpt-5-codex"
+        default: "gpt-5.4-nano"
         type: string
-      claude_model:
-        description: "Claude model"
+      anthropic_model:
+        description: "Anthropic model"
         required: true
-        default: "claude-sonnet-4-20250514"
+        default: "claude-haiku-4-5-20251001"
         type: string
       max_attempts:
         description: "Maximum alternating attempts before success"
@@ -66,8 +66,8 @@ jobs:
             --scenario "${{ inputs.scenario }}" \
             --output-root cross-eval \
             --junit-xml test-results/cross-eval.junit.xml \
-            --codex-model "${{ inputs.codex_model }}" \
-            --claude-model "${{ inputs.claude_model }}" \
+            --openai-model "${{ inputs.openai_model }}" \
+            --anthropic-model "${{ inputs.anthropic_model }}" \
             --max-attempts "${{ inputs.max_attempts }}" \
             --mock
 
@@ -96,7 +96,7 @@ jobs:
         if: steps.cross_eval.outcome == 'failure'
         run: exit 1
 
-  codex-attempt-1:
+  openai-attempt-1:
     if: ${{ !inputs.mock_run }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -126,28 +126,28 @@ jobs:
           python3 scripts/run_cross_eval_session.py \
             --scenario "${{ inputs.scenario }}" \
             --output-root cross-eval \
-            --codex-model "${{ inputs.codex_model }}" \
-            --claude-model "${{ inputs.claude_model }}" \
+            --openai-model "${{ inputs.openai_model }}" \
+            --anthropic-model "${{ inputs.anthropic_model }}" \
             --max-attempts "${{ inputs.max_attempts }}" \
             --prepare-only
 
-      - name: Attempt 1 generate with Codex
+      - name: Attempt 1 generate with OpenAI
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          prompt-file: cross-eval/attempt-01-codex-by-claude/prompts/codex-generate.txt
-          output-file: cross-eval/attempt-01-codex-by-claude/outputs/codex-generated.md
+          prompt-file: cross-eval/attempt-01-openai-by-anthropic/prompts/openai-generate.txt
+          output-file: cross-eval/attempt-01-openai-by-anthropic/outputs/openai-generated.md
           working-directory: .
           sandbox: read-only
-          codex-args: --model ${{ inputs.codex_model }}
+          codex-args: --model ${{ inputs.openai_model }}
 
       - name: Upload attempt 1 artifact
         uses: actions/upload-artifact@v4
         with:
           name: cross-eval-attempt-01
-          path: cross-eval/attempt-01-codex-by-claude/**
+          path: cross-eval/attempt-01-openai-by-anthropic/**
 
-  claude-attempt-2:
+  anthropic-attempt-2:
     if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 2 }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -174,48 +174,48 @@ jobs:
           python3 scripts/run_cross_eval_session.py \
             --scenario "${{ inputs.scenario }}" \
             --output-root cross-eval \
-            --codex-model "${{ inputs.codex_model }}" \
-            --claude-model "${{ inputs.claude_model }}" \
+            --openai-model "${{ inputs.openai_model }}" \
+            --anthropic-model "${{ inputs.anthropic_model }}" \
             --max-attempts "${{ inputs.max_attempts }}" \
             --prepare-only
 
-      - name: Load attempt 2 Claude prompt
+      - name: Load attempt 2 Anthropic prompt
         id: attempt_2_prompt
         run: |
           {
             echo 'prompt<<EOF'
-            cat cross-eval/attempt-02-claude-by-codex/prompts/claude-generate.txt
+            cat cross-eval/attempt-02-anthropic-by-openai/prompts/anthropic-generate.txt
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - name: Attempt 2 generate with Claude
-        id: attempt_2_claude
+      - name: Attempt 2 generate with Anthropic
+        id: attempt_2_anthropic
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ github.token }}
           prompt: ${{ steps.attempt_2_prompt.outputs.prompt }}
           claude_args: |
-            --model ${{ inputs.claude_model }}
+            --model ${{ inputs.anthropic_model }}
             --max-turns 8
 
-      - name: Extract attempt 2 Claude output
+      - name: Extract attempt 2 Anthropic output
         run: |
           python3 scripts/extract_claude_action_output.py \
-            --input "${{ steps.attempt_2_claude.outputs.execution_file }}" \
-            --output cross-eval/attempt-02-claude-by-codex/outputs/claude-generated.md
+            --input "${{ steps.attempt_2_anthropic.outputs.execution_file }}" \
+            --output cross-eval/attempt-02-anthropic-by-openai/outputs/anthropic-generated.md
 
       - name: Upload attempt 2 artifact
         uses: actions/upload-artifact@v4
         with:
           name: cross-eval-attempt-02
-          path: cross-eval/attempt-02-claude-by-codex/**
+          path: cross-eval/attempt-02-anthropic-by-openai/**
 
   evaluate-cross-eval:
     if: ${{ !inputs.mock_run }}
     needs:
-      - codex-attempt-1
-      - claude-attempt-2
+      - openai-attempt-1
+      - anthropic-attempt-2
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -247,8 +247,8 @@ jobs:
           python3 scripts/run_cross_eval_session.py \
             --scenario "${{ inputs.scenario }}" \
             --output-root cross-eval \
-            --codex-model "${{ inputs.codex_model }}" \
-            --claude-model "${{ inputs.claude_model }}" \
+            --openai-model "${{ inputs.openai_model }}" \
+            --anthropic-model "${{ inputs.anthropic_model }}" \
             --max-attempts "${{ inputs.max_attempts }}" \
             --prepare-only
 
@@ -256,14 +256,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: cross-eval-attempt-01
-          path: cross-eval/attempt-01-codex-by-claude
+          path: cross-eval/attempt-01-openai-by-anthropic
 
       - name: Download attempt 2 artifact
         if: ${{ fromJSON(inputs.max_attempts) >= 2 }}
         uses: actions/download-artifact@v4
         with:
           name: cross-eval-attempt-02
-          path: cross-eval/attempt-02-claude-by-codex
+          path: cross-eval/attempt-02-anthropic-by-openai
 
       - name: Evaluate generated outputs
         id: cross_eval_live
@@ -276,8 +276,8 @@ jobs:
             --scenario "${{ inputs.scenario }}" \
             --output-root cross-eval \
             --junit-xml test-results/cross-eval.junit.xml \
-            --codex-model "${{ inputs.codex_model }}" \
-            --claude-model "${{ inputs.claude_model }}" \
+            --openai-model "${{ inputs.openai_model }}" \
+            --anthropic-model "${{ inputs.anthropic_model }}" \
             --max-attempts "${{ inputs.max_attempts }}" \
             --use-existing-outputs
 

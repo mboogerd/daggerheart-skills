@@ -59,7 +59,7 @@ def fixture_dir_for_scenario(scenario_id: str) -> Path:
 
 
 def build_attempt_plan(max_attempts: int) -> list[tuple[str, str]]:
-    sequence = [("codex", "claude"), ("claude", "codex")]
+    sequence = [("openai", "anthropic"), ("anthropic", "openai")]
     plan: list[tuple[str, str]] = []
     for index in range(max_attempts):
         plan.append(sequence[index % len(sequence)])
@@ -68,12 +68,12 @@ def build_attempt_plan(max_attempts: int) -> list[tuple[str, str]]:
 
 def parse_lane(value: str) -> tuple[str, str]:
     normalized = value.strip().lower().replace("_", "-")
-    if normalized in {"codex-by-claude", "codex-gen-claude-judge"}:
-        return ("codex", "claude")
-    if normalized in {"claude-by-codex", "claude-gen-codex-judge"}:
-        return ("claude", "codex")
+    if normalized in {"openai-by-anthropic", "openai-gen-anthropic-judge", "codex-by-claude", "codex-gen-claude-judge"}:
+        return ("openai", "anthropic")
+    if normalized in {"anthropic-by-openai", "anthropic-gen-openai-judge", "claude-by-codex", "claude-gen-codex-judge"}:
+        return ("anthropic", "openai")
     raise SystemExit(
-        "--lane must be one of: codex-by-claude, claude-by-codex, codex-gen-claude-judge, claude-gen-codex-judge."
+        "--lane must be one of: openai-by-anthropic, anthropic-by-openai, openai-gen-anthropic-judge, anthropic-gen-openai-judge."
     )
 
 
@@ -150,7 +150,7 @@ def run_command(cmd: list[str], *, cwd: Path, stdout_path: Path, stderr_path: Pa
     )
 
 
-def run_codex(prompt: str, *, model: str, output_path: Path, log_prefix: Path) -> CommandResult:
+def run_openai_generation(prompt: str, *, model: str, output_path: Path, log_prefix: Path) -> CommandResult:
     cmd = ["codex", "exec", "--sandbox", "read-only", "--model", model]
     cmd.extend(["--output-last-message", str(output_path), "-"])
     return run_command(
@@ -162,7 +162,7 @@ def run_codex(prompt: str, *, model: str, output_path: Path, log_prefix: Path) -
     )
 
 
-def run_claude(prompt: str, *, model: str, output_path: Path, log_prefix: Path) -> CommandResult:
+def run_anthropic_generation(prompt: str, *, model: str, output_path: Path, log_prefix: Path) -> CommandResult:
     cmd = [
         "claude",
         "-p",
@@ -384,8 +384,8 @@ def run_attempt(
     properties_path: Path,
     request_text: str,
     output_root: Path,
-    codex_model: str,
-    claude_model: str,
+    openai_model: str,
+    anthropic_model: str,
     mock: bool,
     mock_fail_attempt: int | None,
     use_existing_outputs: bool,
@@ -419,17 +419,17 @@ def run_attempt(
         if not generated_output_path.exists():
             raise SystemExit(f"Missing pre-generated output for attempt {attempt_number}: {generated_output_path}")
     else:
-        if generator == "codex":
-            generation_result = run_codex(
+        if generator == "openai":
+            generation_result = run_openai_generation(
                 generation_prompt,
-                model=codex_model,
+                model=openai_model,
                 output_path=generated_output_path,
                 log_prefix=outputs_dir / f"{generator}-generate",
             )
         else:
-            generation_result = run_claude(
+            generation_result = run_anthropic_generation(
                 generation_prompt,
-                model=claude_model,
+                model=anthropic_model,
                 output_path=generated_output_path,
                 log_prefix=outputs_dir / f"{generator}-generate",
             )
@@ -498,7 +498,7 @@ def run_attempt(
         else:
             from structured_judge import judge_with_pydantic_ai
 
-            judge_model = claude_model if judge_provider == "claude" else codex_model
+            judge_model = anthropic_model if judge_provider == "anthropic" else openai_model
             try:
                 judge_payload, judge_metadata = judge_with_pydantic_ai(
                     provider=judge_provider,
@@ -558,8 +558,10 @@ def main() -> int:
     parser.add_argument("--scenario", type=Path, default=DEFAULT_SCENARIO)
     parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
     parser.add_argument("--junit-xml", type=Path, default=DEFAULT_JUNIT_XML)
-    parser.add_argument("--codex-model", default="gpt-5-codex")
-    parser.add_argument("--claude-model", default="claude-sonnet-4-20250514")
+    parser.add_argument("--openai-model", default="gpt-5.4-nano")
+    parser.add_argument("--anthropic-model", default="claude-haiku-4-5-20251001")
+    parser.add_argument("--codex-model", dest="openai_model")
+    parser.add_argument("--claude-model", dest="anthropic_model")
     parser.add_argument("--max-attempts", type=int)
     parser.add_argument("--lane")
     parser.add_argument("--attempt-number", type=int, default=1)
@@ -639,8 +641,8 @@ def main() -> int:
             properties_path=properties_path,
             request_text=request_text,
             output_root=output_root,
-            codex_model=args.codex_model,
-            claude_model=args.claude_model,
+            openai_model=args.openai_model,
+            anthropic_model=args.anthropic_model,
             mock=args.mock,
             mock_fail_attempt=args.mock_fail_attempt,
             use_existing_outputs=args.use_existing_outputs,

@@ -5,8 +5,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCENARIO="evals/cross-eval/scenarios/tier1_leader_smoke.json"
 OUTPUT_ROOT="$ROOT_DIR/cross-eval"
 JUNIT_XML="$ROOT_DIR/test-results/cross-eval.junit.xml"
-CODEX_MODEL="gpt-5-codex"
-CLAUDE_MODEL="claude-sonnet-4-20250514"
+OPENAI_MODEL="gpt-5.4-nano"
+ANTHROPIC_MODEL="claude-haiku-4-5-20251001"
 MAX_ATTEMPTS="2"
 LANE=""
 ATTEMPT_NUMBER="1"
@@ -27,16 +27,16 @@ Options:
   --scenario PATH
   --output-root PATH
   --junit-xml PATH
-  --codex-model MODEL
-  --claude-model MODEL
+  --openai-model MODEL
+  --anthropic-model MODEL
   --max-attempts N
-  --lane codex-by-claude|claude-by-codex
+  --lane openai-by-anthropic|anthropic-by-openai
   --attempt-number N
   -h, --help
 
 Examples:
   scripts/run_cross_eval_local.sh
-  scripts/run_cross_eval_local.sh --lane claude-by-codex --attempt-number 2
+  scripts/run_cross_eval_local.sh --lane anthropic-by-openai --attempt-number 2
   scripts/run_cross_eval_local.sh mock
   scripts/run_cross_eval_local.sh prepare --output-root /tmp/cross-eval-local
   scripts/run_cross_eval_local.sh evaluate --output-root /tmp/cross-eval-local
@@ -70,12 +70,12 @@ while [[ $# -gt 0 ]]; do
       JUNIT_XML="$2"
       shift 2
       ;;
-    --codex-model)
-      CODEX_MODEL="$2"
+    --openai-model|--codex-model)
+      OPENAI_MODEL="$2"
       shift 2
       ;;
-    --claude-model)
-      CLAUDE_MODEL="$2"
+    --anthropic-model|--claude-model)
+      ANTHROPIC_MODEL="$2"
       shift 2
       ;;
     --max-attempts)
@@ -108,8 +108,8 @@ COMMON_ARGS=(
   --scenario "$SCENARIO"
   --output-root "$OUTPUT_ROOT"
   --junit-xml "$JUNIT_XML"
-  --codex-model "$CODEX_MODEL"
-  --claude-model "$CLAUDE_MODEL"
+  --openai-model "$OPENAI_MODEL"
+  --anthropic-model "$ANTHROPIC_MODEL"
 )
 
 if [[ -n "$LANE" ]]; then
