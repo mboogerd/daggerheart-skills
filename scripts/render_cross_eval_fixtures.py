@@ -170,6 +170,8 @@ def build_combat_encounter_planning_properties(scenario: dict[str, Any]) -> dict
         "generation_requirements": [
             "Return only the completed encounter plan.",
             "Use the exact section headings and bullet-oriented structure from the template.",
+            "Use numeric digits for Tier, Party size, Starting budget, Final budget, and each roster Points value.",
+            "Use legal role costs only: minion/social/support=1, horde/ranged/skulk/standard=2, leader=3, bruiser=4, solo=5.",
             "Keep the encounter at the orchestration layer rather than generating full downstream adversary stat blocks.",
             "Make roster resolutions explicit.",
             "Do not wrap the answer in code fences.",

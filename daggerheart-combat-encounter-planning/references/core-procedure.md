@@ -38,6 +38,8 @@ Spend rates:
 - bruiser: 4
 - solo: 5
 
+When writing the final encounter plan, use numeric digits for party size, tier, budgets, and roster point values.
+
 ## Composition Rule
 
 The encounter should ask more than one tactical question.

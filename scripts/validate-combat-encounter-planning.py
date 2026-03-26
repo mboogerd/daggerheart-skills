@@ -58,6 +58,30 @@ ROLE_POINT_COSTS = {
     "solo": 5,
 }
 
+NUMBER_WORDS = {
+    "zero": 0,
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "eleven": 11,
+    "twelve": 12,
+    "thirteen": 13,
+    "fourteen": 14,
+    "fifteen": 15,
+    "sixteen": 16,
+    "seventeen": 17,
+    "eighteen": 18,
+    "nineteen": 19,
+    "twenty": 20,
+}
+
 
 def read_json(path: Path) -> list[dict[str, Any]]:
     return json.loads(path.read_text())
@@ -66,6 +90,10 @@ def read_json(path: Path) -> list[dict[str, Any]]:
 def parse_int(value: str) -> int | None:
     match = re.search(r"-?\d+", value)
     if not match:
+        normalized = value.strip().lower().replace("-", " ")
+        for token in normalized.split():
+            if token in NUMBER_WORDS:
+                return NUMBER_WORDS[token]
         return None
     return int(match.group(0))
 
