@@ -35,6 +35,10 @@ def load_module(path: Path, module_name: str):
 
 DESCRIPTION_MODULE = load_module(ROOT / "scripts" / "check-description-length.py", "check_description_length")
 VALIDATOR_MODULE = load_module(ROOT / "scripts" / "validate-adversary-creation.py", "validate_adversary_creation")
+ENCOUNTER_VALIDATOR_MODULE = load_module(
+    ROOT / "scripts" / "validate-combat-encounter-planning.py",
+    "validate_combat_encounter_planning",
+)
 
 
 def check_skill_layout() -> list[CaseResult]:
@@ -122,6 +126,37 @@ def check_adversary_creation_cases() -> list[CaseResult]:
     return results
 
 
+def check_combat_encounter_planning_cases() -> list[CaseResult]:
+    case_file = ROOT / "evals" / "combat-encounter-planning.output-cases.json"
+    payload = json.loads(case_file.read_text())
+    results: list[CaseResult] = []
+
+    for case in payload:
+        sample = case.get("sample_output")
+        if not sample:
+            continue
+
+        sample_path = ROOT / Path(sample).relative_to("skills")
+        errors, warnings = ENCOUNTER_VALIDATOR_MODULE.validate_output(
+            sample_path.read_text(),
+            case,
+        )
+
+        details_parts = [f"sample={sample_path.relative_to(ROOT)}"]
+        if warnings:
+            details_parts.extend(f"warning: {warning}" for warning in warnings)
+
+        results.append(
+            CaseResult(
+                suite="combat-encounter-planning-evals",
+                name=case["id"],
+                failure="\n".join(errors) if errors else None,
+                details="\n".join(details_parts),
+            )
+        )
+    return results
+
+
 def time_results(results: list[CaseResult], fn) -> None:
     start = time.perf_counter()
     fn_results = fn()
@@ -179,6 +214,7 @@ def main() -> int:
     time_results(results, check_skill_layout)
     time_results(results, check_description_length)
     time_results(results, check_adversary_creation_cases)
+    time_results(results, check_combat_encounter_planning_cases)
 
     write_junit_xml(results, args.junit_xml)
 

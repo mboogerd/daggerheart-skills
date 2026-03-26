@@ -1,0 +1,12 @@
+{
+  "id": "tier1_bridge_defense",
+  "suite": "combat-encounter-planning",
+  "skill_path": "daggerheart-combat-encounter-planning/SKILL.md",
+  "max_attempts": 3,
+  "prompt": "Plan a Daggerheart combat encounter for four tier 1 PCs defending a village bridge from militia deserters.",
+  "sample_output": "evals/combat-encounter-planning/samples/pass-tier1-bridge-defense.md",
+  "rubric_paths": [
+    "evals/output-rubric.md",
+    "evals/combat-encounter-planning-rubric.md"
+  ]
+}

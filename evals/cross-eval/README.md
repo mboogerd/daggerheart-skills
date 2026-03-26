@@ -24,7 +24,13 @@ Checked-in fixtures under `fixtures/<scenario-id>/` hold:
 - `verification-properties.json`: the distilled verification properties used by the judge
 - `verification-properties.schema.json`: the contract for the verification properties format
 
-The verification properties use explicit bound objects for numeric bands, for example:
+The verification properties have a suite-specific body inside a common envelope:
+
+- common fields: scenario id, suite, validator, skill grounding, judge focus, generation requirements
+- adversary creation adds explicit numeric bands and role expectations
+- combat encounter planning adds required sections, party/budget expectations, and resolution-value expectations
+
+For adversary creation, the numeric bands use explicit bound objects, for example:
 
 ```json
 {
@@ -36,6 +42,24 @@ The verification properties use explicit bound objects for numeric bands, for ex
 ```
 
 Threshold bands are named explicitly as `first_threshold` and `second_threshold`.
+
+For combat encounter planning, the verification properties instead express structural expectations such as:
+
+```json
+{
+  "required_sections": [
+    "Encounter Premise",
+    "Battle-Point Budget",
+    "Encounter Roster Plan"
+  ],
+  "required_resolution_values": [
+    "lookup-existing-unnamed",
+    "adapt-existing",
+    "create-unnamed",
+    "create-named"
+  ]
+}
+```
 
 Generate or refresh those fixtures with:
 

@@ -36,6 +36,10 @@ def load_module(path: Path, module_name: str):
 
 
 VALIDATOR_MODULE = load_module(ROOT / "scripts" / "validate-adversary-creation.py", "validate_adversary_creation")
+COMBAT_VALIDATOR_MODULE = load_module(
+    ROOT / "scripts" / "validate-combat-encounter-planning.py",
+    "validate_combat_encounter_planning",
+)
 
 
 @dataclass
@@ -110,7 +114,7 @@ def prepare_attempt_files(
     judge_output_path = outputs_dir / f"{judge_provider}-judge-{generator}.json"
     judge_metadata_path = outputs_dir / f"{judge_provider}-judge-{generator}.meta.json"
 
-    generation_prompt = build_generation_prompt(properties["skill_access"]["skill_path"], request_text)
+    generation_prompt = build_generation_prompt(properties, request_text)
     write_text(generation_prompt_path, generation_prompt)
 
     return {
@@ -188,12 +192,16 @@ def run_claude(prompt: str, *, model: str, output_path: Path, log_prefix: Path) 
     return result
 
 
-def build_generation_prompt(skill_path: str, user_request: str) -> str:
+def build_generation_prompt(properties: dict[str, Any], user_request: str) -> str:
+    skill_access = properties["skill_access"]
+    generation_requirements = "\n".join(
+        f"- {requirement}" for requirement in properties["generation_requirements"]
+    )
     return textwrap.dedent(
         f"""
         Repository grounding:
-        - Read and use `{skill_path}` and the files it references before answering.
-        - Read and follow the exact final-output shape in `daggerheart-adversary-creation/assets/template.md`.
+        - Read and use `{skill_access["skill_path"]}` and the files it references before answering.
+        - Read and follow the exact final-output shape in `{skill_access["template_path"]}`.
         - Use that skill as the source of truth for format and content.
         - Do not use any evaluation criteria, expected role metadata, or sample outputs.
 
@@ -202,11 +210,7 @@ def build_generation_prompt(skill_path: str, user_request: str) -> str:
         {user_request.rstrip()}
 
         Output requirements:
-        - Return only the final stat block body.
-        - Do not output YAML frontmatter, tags, metadata fields, or explanatory prose.
-        - Do not wrap the answer in code fences.
-        - Do not explain your reasoning.
-        - Do not modify repository files.
+        {generation_requirements}
         """
     ).strip() + "\n"
 
@@ -262,11 +266,18 @@ def failure_judge_payload(summary: str, issue: str) -> dict[str, Any]:
 
 
 def validate_candidate(text: str, properties: dict[str, Any]) -> tuple[list[str], list[str]]:
-    return VALIDATOR_MODULE.validate_output(
-        text,
-        expected_tier=properties["expected_tier"],
-        expected_role=properties["expected_role"],
-    )
+    if properties["suite"] == "adversary-creation":
+        return VALIDATOR_MODULE.validate_output(
+            text,
+            expected_tier=properties["expected_tier"],
+            expected_role=properties["expected_role"],
+        )
+    if properties["suite"] == "combat-encounter-planning":
+        return COMBAT_VALIDATOR_MODULE.validate_output(
+            text,
+            properties,
+        )
+    raise ValueError(f"Unsupported suite: {properties['suite']}")
 
 
 def materialize_mock_generation(sample_path: Path, output_path: Path) -> None:

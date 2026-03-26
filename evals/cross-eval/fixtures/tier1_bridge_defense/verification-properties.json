@@ -1,0 +1,53 @@
+{
+  "scenario_id": "tier1_bridge_defense",
+  "suite": "combat-encounter-planning",
+  "validator": "combat-encounter-planning",
+  "skill_access": {
+    "skill_path": "daggerheart-combat-encounter-planning/SKILL.md",
+    "references_dir": "daggerheart-combat-encounter-planning/references",
+    "template_path": "daggerheart-combat-encounter-planning/assets/template.md"
+  },
+  "generation_requirements": [
+    "Return only the completed encounter plan.",
+    "Use the exact section headings and bullet-oriented structure from the template.",
+    "Keep the encounter at the orchestration layer rather than generating full downstream adversary stat blocks.",
+    "Make roster resolutions explicit.",
+    "Do not wrap the answer in code fences.",
+    "Do not explain your reasoning.",
+    "Do not modify repository files."
+  ],
+  "expected_tier": 1,
+  "expected_party_size": 4,
+  "expected_starting_budget": 14,
+  "required_sections": [
+    "Encounter Premise",
+    "Party Assumptions",
+    "Narrative Function",
+    "Enemy Motives",
+    "Battle-Point Budget",
+    "Encounter Roster Plan",
+    "Environment Plan",
+    "Escalation Plan",
+    "Victory and Failure States",
+    "Dependency Handoffs"
+  ],
+  "required_resolution_values": [
+    "lookup-existing-unnamed",
+    "adapt-existing",
+    "create-unnamed",
+    "create-named"
+  ],
+  "allowed_resolution_values": [
+    "lookup-existing-named",
+    "lookup-existing-unnamed",
+    "adapt-existing",
+    "create-named",
+    "create-unnamed"
+  ],
+  "judge_focus": [
+    "Check that the output follows the required encounter-plan structure.",
+    "Check that the budget math and role costs are plausible for the stated party and tier.",
+    "Check that the encounter creates multiple player-facing pressures rather than a flat fight.",
+    "Check that the plan delegates lookup, adaptation, and creation work explicitly instead of collapsing all downstream work inline."
+  ]
+}

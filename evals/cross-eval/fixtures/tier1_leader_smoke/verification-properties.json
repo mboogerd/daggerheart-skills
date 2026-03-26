@@ -4,8 +4,16 @@
   "validator": "adversary-creation",
   "skill_access": {
     "skill_path": "daggerheart-adversary-creation/SKILL.md",
-    "references_dir": "daggerheart-adversary-creation/references"
+    "references_dir": "daggerheart-adversary-creation/references",
+    "template_path": "daggerheart-adversary-creation/assets/template.md"
   },
+  "generation_requirements": [
+    "Return only the final stat block body.",
+    "Do not output YAML frontmatter, tags, metadata fields, or explanatory prose.",
+    "Do not wrap the answer in code fences.",
+    "Do not explain your reasoning.",
+    "Do not modify repository files."
+  ],
   "expected_role": "leader",
   "expected_tier": 1,
   "required_fields": [

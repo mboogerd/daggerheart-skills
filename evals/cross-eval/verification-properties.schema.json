@@ -1,39 +1,21 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "scenario_id",
-    "suite",
-    "validator",
-    "skill_access",
-    "expected_role",
-    "expected_tier",
-    "required_fields",
-    "feature_count",
-    "safe_band",
-    "role_specific_expectations",
-    "judge_focus"
+  "oneOf": [
+    {
+      "$ref": "#/$defs/adversaryCreationProperties"
+    },
+    {
+      "$ref": "#/$defs/combatEncounterPlanningProperties"
+    }
   ],
-  "properties": {
-    "scenario_id": {
-      "type": "string",
-      "minLength": 1
-    },
-    "suite": {
-      "type": "string",
-      "minLength": 1
-    },
-    "validator": {
-      "type": "string",
-      "minLength": 1
-    },
-    "skill_access": {
+  "$defs": {
+    "skillAccess": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "skill_path",
-        "references_dir"
+        "references_dir",
+        "template_path"
       ],
       "properties": {
         "skill_path": {
@@ -43,91 +25,13 @@
         "references_dir": {
           "type": "string",
           "minLength": 1
+        },
+        "template_path": {
+          "type": "string",
+          "minLength": 1
         }
       }
     },
-    "expected_role": {
-      "type": "string",
-      "minLength": 1
-    },
-    "expected_tier": {
-      "type": "integer",
-      "minimum": 0
-    },
-    "required_fields": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "feature_count": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "min",
-        "max"
-      ],
-      "properties": {
-        "min": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "max": {
-          "type": "integer",
-          "minimum": 0
-        }
-      }
-    },
-    "safe_band": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "difficulty",
-        "thresholds",
-        "hp",
-        "stress",
-        "atk",
-        "fixed_damage",
-        "damage_avg"
-      ],
-      "properties": {
-        "difficulty": {
-          "$ref": "#/$defs/boundOrNull"
-        },
-        "thresholds": {
-          "$ref": "#/$defs/thresholdBoundsOrNull"
-        },
-        "hp": {
-          "$ref": "#/$defs/boundOrNull"
-        },
-        "stress": {
-          "$ref": "#/$defs/boundOrNull"
-        },
-        "atk": {
-          "$ref": "#/$defs/boundOrNull"
-        },
-        "fixed_damage": {
-          "$ref": "#/$defs/boundOrNull"
-        },
-        "damage_avg": {
-          "$ref": "#/$defs/boundOrNull"
-        }
-      }
-    },
-    "role_specific_expectations": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "judge_focus": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    }
-  },
-  "$defs": {
     "bound": {
       "type": "object",
       "additionalProperties": false,
@@ -177,6 +81,252 @@
         },
         {
           "type": "null"
+        }
+      ]
+    },
+    "commonProperties": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario_id",
+        "suite",
+        "validator",
+        "skill_access",
+        "judge_focus",
+        "generation_requirements"
+      ],
+      "properties": {
+        "scenario_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "suite": {
+          "type": "string",
+          "minLength": 1
+        },
+        "validator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "skill_access": {
+          "$ref": "#/$defs/skillAccess"
+        },
+        "judge_focus": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "generation_requirements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "adversaryCreationProperties": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/commonProperties"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "scenario_id",
+            "suite",
+            "validator",
+            "skill_access",
+            "judge_focus",
+            "generation_requirements",
+            "expected_role",
+            "expected_tier",
+            "required_fields",
+            "feature_count",
+            "safe_band",
+            "role_specific_expectations"
+          ],
+          "properties": {
+            "scenario_id": {
+              "type": "string"
+            },
+            "suite": {
+              "const": "adversary-creation"
+            },
+            "validator": {
+              "type": "string"
+            },
+            "skill_access": {
+              "$ref": "#/$defs/skillAccess"
+            },
+            "judge_focus": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "generation_requirements": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "expected_role": {
+              "type": "string",
+              "minLength": 1
+            },
+            "expected_tier": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "required_fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "feature_count": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "min",
+                "max"
+              ],
+              "properties": {
+                "min": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "max": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "safe_band": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "difficulty",
+                "thresholds",
+                "hp",
+                "stress",
+                "atk",
+                "fixed_damage",
+                "damage_avg"
+              ],
+              "properties": {
+                "difficulty": {
+                  "$ref": "#/$defs/boundOrNull"
+                },
+                "thresholds": {
+                  "$ref": "#/$defs/thresholdBoundsOrNull"
+                },
+                "hp": {
+                  "$ref": "#/$defs/boundOrNull"
+                },
+                "stress": {
+                  "$ref": "#/$defs/boundOrNull"
+                },
+                "atk": {
+                  "$ref": "#/$defs/boundOrNull"
+                },
+                "fixed_damage": {
+                  "$ref": "#/$defs/boundOrNull"
+                },
+                "damage_avg": {
+                  "$ref": "#/$defs/boundOrNull"
+                }
+              }
+            },
+            "role_specific_expectations": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "combatEncounterPlanningProperties": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/commonProperties"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "scenario_id",
+            "suite",
+            "validator",
+            "skill_access",
+            "judge_focus",
+            "generation_requirements",
+            "expected_tier",
+            "expected_party_size",
+            "expected_starting_budget",
+            "required_sections",
+            "required_resolution_values"
+          ],
+          "properties": {
+            "scenario_id": {
+              "type": "string"
+            },
+            "suite": {
+              "const": "combat-encounter-planning"
+            },
+            "validator": {
+              "type": "string"
+            },
+            "skill_access": {
+              "$ref": "#/$defs/skillAccess"
+            },
+            "judge_focus": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "generation_requirements": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "expected_tier": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "expected_party_size": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "expected_starting_budget": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "required_sections": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "required_resolution_values": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "allowed_resolution_values": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
         }
       ]
     }

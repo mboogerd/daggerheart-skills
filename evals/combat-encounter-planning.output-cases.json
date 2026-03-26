@@ -23,7 +23,7 @@
       "create-unnamed",
       "create-named"
     ],
-    "sample_output": null
+    "sample_output": "skills/evals/combat-encounter-planning/samples/pass-tier1-bridge-defense.md"
   },
   {
     "id": "tier2_ritual_interrupt",

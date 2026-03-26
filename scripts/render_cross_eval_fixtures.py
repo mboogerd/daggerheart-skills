@@ -65,6 +65,10 @@ def load_module(path: Path, module_name: str):
 
 
 VALIDATOR_MODULE = load_module(ROOT / "scripts" / "validate-adversary-creation.py", "validate_adversary_creation")
+COMBAT_VALIDATOR_MODULE = load_module(
+    ROOT / "scripts" / "validate-combat-encounter-planning.py",
+    "validate_combat_encounter_planning",
+)
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -99,10 +103,7 @@ def explicit_threshold_bounds(
     }
 
 
-def build_verification_properties(scenario: dict[str, Any]) -> dict[str, Any]:
-    if scenario["suite"] != "adversary-creation":
-        raise ValueError(f"Unsupported suite: {scenario['suite']}")
-
+def build_adversary_creation_properties(scenario: dict[str, Any]) -> dict[str, Any]:
     expected_tier = int(scenario["expected_tier"])
     expected_role = str(scenario["expected_role"])
     ref_path = VALIDATOR_MODULE.REFS / f"tier-{expected_tier}-{expected_role}.md"
@@ -115,7 +116,15 @@ def build_verification_properties(scenario: dict[str, Any]) -> dict[str, Any]:
         "skill_access": {
             "skill_path": scenario["skill_path"],
             "references_dir": "daggerheart-adversary-creation/references",
+            "template_path": "daggerheart-adversary-creation/assets/template.md",
         },
+        "generation_requirements": [
+            "Return only the final stat block body.",
+            "Do not output YAML frontmatter, tags, metadata fields, or explanatory prose.",
+            "Do not wrap the answer in code fences.",
+            "Do not explain your reasoning.",
+            "Do not modify repository files.",
+        ],
         "expected_role": expected_role,
         "expected_tier": expected_tier,
         "required_fields": REQUIRED_FIELDS,
@@ -140,6 +149,54 @@ def build_verification_properties(scenario: dict[str, Any]) -> dict[str, Any]:
             "Flag overloaded, generic, or weak feature design."
         ],
     })
+
+
+def build_combat_encounter_planning_properties(scenario: dict[str, Any]) -> dict[str, Any]:
+    case = COMBAT_VALIDATOR_MODULE.read_json(ROOT / "evals" / "combat-encounter-planning.output-cases.json")
+    case_by_id = {item["id"]: item for item in case}
+    scenario_case = case_by_id.get(scenario["id"])
+    if scenario_case is None:
+        raise ValueError(f"No combat encounter planning case found for scenario id {scenario['id']}")
+
+    return validate_verification_properties({
+        "scenario_id": scenario["id"],
+        "suite": scenario["suite"],
+        "validator": "combat-encounter-planning",
+        "skill_access": {
+            "skill_path": scenario["skill_path"],
+            "references_dir": "daggerheart-combat-encounter-planning/references",
+            "template_path": "daggerheart-combat-encounter-planning/assets/template.md",
+        },
+        "generation_requirements": [
+            "Return only the completed encounter plan.",
+            "Use the exact section headings and bullet-oriented structure from the template.",
+            "Keep the encounter at the orchestration layer rather than generating full downstream adversary stat blocks.",
+            "Make roster resolutions explicit.",
+            "Do not wrap the answer in code fences.",
+            "Do not explain your reasoning.",
+            "Do not modify repository files.",
+        ],
+        "expected_tier": int(scenario_case["expected_tier"]),
+        "expected_party_size": int(scenario_case["expected_party_size"]),
+        "expected_starting_budget": int(scenario_case["expected_starting_budget"]),
+        "required_sections": scenario_case["required_sections"],
+        "required_resolution_values": scenario_case["required_resolution_values"],
+        "allowed_resolution_values": list(COMBAT_VALIDATOR_MODULE.ALLOWED_RESOLUTION_VALUES),
+        "judge_focus": [
+            "Check that the output follows the required encounter-plan structure.",
+            "Check that the budget math and role costs are plausible for the stated party and tier.",
+            "Check that the encounter creates multiple player-facing pressures rather than a flat fight.",
+            "Check that the plan delegates lookup, adaptation, and creation work explicitly instead of collapsing all downstream work inline.",
+        ],
+    })
+
+
+def build_verification_properties(scenario: dict[str, Any]) -> dict[str, Any]:
+    if scenario["suite"] == "adversary-creation":
+        return build_adversary_creation_properties(scenario)
+    if scenario["suite"] == "combat-encounter-planning":
+        return build_combat_encounter_planning_properties(scenario)
+    raise ValueError(f"Unsupported suite: {scenario['suite']}")
 
 
 def render_scenario(path: Path) -> tuple[Path, Path]:
