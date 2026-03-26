@@ -44,6 +44,8 @@ Every roster slot should include an explicit count.
 
 If one roster slot represents multiple adversaries of the same role, set `Count` to that quantity and set the point value to the total spend for that grouped slot.
 
+For `Role: minion`, `Count` means the number of minion groups. Each such group is equal to the party size unless the encounter explicitly says otherwise.
+
 ## Composition Rule
 
 The encounter should ask more than one tactical question.

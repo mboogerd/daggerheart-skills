@@ -101,5 +101,5 @@
 
 - Ready for lookup: Supply-grab skirmishers; Desperate rabble
 - Ready for adaptation: Flanking bow militia
-- Ready for unnamed adversary creation: Bridge line militia; Wagon-pushers; Mud-bank swarm; Panic-starters
+- Ready for unnamed adversary creation: Bridge line militia; Wagon-pushers; Mud-bank swarm
 - Ready for named adversary creation: Deserter sergeant

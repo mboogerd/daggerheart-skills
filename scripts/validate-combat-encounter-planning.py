@@ -226,7 +226,13 @@ def validate_output(text: str, case: dict[str, Any] | None = None) -> tuple[list
             total_points += points
             expected_cost = ROLE_POINT_COSTS[role] * count
             if points != expected_cost:
-                errors.append(f"Roster slot {index} has {points} points, but role `{role}` should cost {expected_cost}.")
+                if role == "minion":
+                    errors.append(
+                        f"Roster slot {index} has {points} points, but role `minion` should cost {expected_cost}. "
+                        "For minions, Count is the number of party-sized minion groups."
+                    )
+                else:
+                    errors.append(f"Roster slot {index} has {points} points, but role `{role}` should cost {expected_cost}.")
 
         resolution = entry.get("resolution", "").strip()
         if not resolution:

@@ -31,6 +31,8 @@
 
 ## Encounter Roster Plan
 
+For `Role: minion`, `Count` means the number of minion groups, where each group is equal to party size unless the plan states otherwise.
+
 - Slot:
   Count:
   Role:

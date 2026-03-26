@@ -23,7 +23,7 @@
 
 - Narrative function: stop a ritual while surviving the battlefield
 - Budget: average to hard
-- Backbone: 1 slot with Count 1, Role Horde, Points 2; 1 slot with Count 1, Role Support, Points 1
+- Backbone: 1 slot with Count 1, Role Horde, Points 2; 1 slot with Count 1, Role Support, Points 1; optional 1 slot with Count 2, Role Minion, Points 2 when you want two party-sized minion groups
 - Environment: unstable ritual site is the primary pressure
 - Escalation: countdown advances whenever a PC fails with Fear near the focus point
 - Handoffs: environment-design first, then lookup or create adversaries that fit the ritual site

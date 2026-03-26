@@ -235,6 +235,7 @@ def _build_combat_encounter_planning_properties(scenario: dict[str, Any]) -> dic
             "Every roster slot must include Count as an integer quantity.",
             "Use legal role costs only: minion/social/support=1, horde/ranged/skulk/standard=2, leader=3, bruiser=4, solo=5.",
             "Use Points for the total spend of that roster slot: Count multiplied by the role cost.",
+            "For Role: minion, Count means the number of minion groups, where each group is equal to party size unless you explicitly state otherwise.",
             "Spend the full Final budget exactly unless the scenario explicitly says otherwise.",
             "Demonstrate every required roster resolution type for the scenario at least once.",
             "Keep the encounter at the orchestration layer rather than generating full downstream adversary stat blocks.",
