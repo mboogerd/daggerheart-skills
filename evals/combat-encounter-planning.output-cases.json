@@ -1,0 +1,71 @@
+[
+  {
+    "id": "tier1_bridge_defense",
+    "prompt": "Plan a Daggerheart combat encounter for four tier 1 PCs defending a village bridge from militia deserters.",
+    "expected_party_size": 4,
+    "expected_tier": 1,
+    "expected_starting_budget": 14,
+    "required_sections": [
+      "Encounter Premise",
+      "Party Assumptions",
+      "Narrative Function",
+      "Enemy Motives",
+      "Battle-Point Budget",
+      "Encounter Roster Plan",
+      "Environment Plan",
+      "Escalation Plan",
+      "Victory and Failure States",
+      "Dependency Handoffs"
+    ],
+    "required_resolution_values": [
+      "lookup-existing-unnamed",
+      "adapt-existing",
+      "create-unnamed",
+      "create-named"
+    ],
+    "sample_output": null
+  },
+  {
+    "id": "tier2_ritual_interrupt",
+    "prompt": "Build a combat encounter for three tier 2 PCs trying to interrupt a shadow ritual in a flooded crypt.",
+    "expected_party_size": 3,
+    "expected_tier": 2,
+    "expected_starting_budget": 11,
+    "required_sections": [
+      "Narrative Function",
+      "Battle-Point Budget",
+      "Encounter Roster Plan",
+      "Environment Plan",
+      "Escalation Plan",
+      "Victory and Failure States"
+    ],
+    "required_resolution_values": [
+      "lookup-existing-unnamed",
+      "adapt-existing",
+      "create-unnamed",
+      "create-named"
+    ],
+    "sample_output": null
+  },
+  {
+    "id": "tier3_commander_push",
+    "prompt": "Plan a hard combat encounter for five tier 3 PCs assaulting a fortified gatehouse commanded by a named enemy captain.",
+    "expected_party_size": 5,
+    "expected_tier": 3,
+    "expected_starting_budget": 17,
+    "required_sections": [
+      "Narrative Function",
+      "Enemy Motives",
+      "Battle-Point Budget",
+      "Encounter Roster Plan",
+      "Dependency Handoffs"
+    ],
+    "required_resolution_values": [
+      "lookup-existing-unnamed",
+      "adapt-existing",
+      "create-unnamed",
+      "create-named"
+    ],
+    "sample_output": null
+  }
+]

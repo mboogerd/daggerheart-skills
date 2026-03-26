@@ -25,6 +25,12 @@ For adversary creation, also use:
 - `adversary-creation.output-cases.json`
 - `adversary-creation/samples/`
 
+For combat encounter planning, use:
+
+- `combat-encounter-planning-rubric.md`
+- `combat-encounter-planning.output-cases.json`
+- `combat-encounter-planning.trigger.json`
+
 ## Suggested Loop
 
 1. choose one skill

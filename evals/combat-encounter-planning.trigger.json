@@ -1,0 +1,47 @@
+[
+  {
+    "category": "should_trigger",
+    "query": "Plan a Daggerheart combat encounter for four tier 1 PCs defending a village bridge from militia deserters.",
+    "notes": "Full encounter planning request with party, context, and scene."
+  },
+  {
+    "category": "should_trigger",
+    "query": "I need a boss fight for level 5 heroes in a collapsing observatory, including what minions or supports belong with it.",
+    "notes": "Calls for full encounter structure, not just one adversary."
+  },
+  {
+    "category": "should_trigger",
+    "query": "Build me a dangerous but not lethal patrol encounter for three PCs crossing a cursed forest road.",
+    "notes": "Needs budget, role mix, and environment pressure."
+  },
+  {
+    "category": "should_trigger",
+    "query": "Design a Daggerheart encounter where the goal is to stop a ritual, not kill everyone in the room.",
+    "notes": "Strong objective and escalation planning signal."
+  },
+  {
+    "category": "should_ask_followup",
+    "query": "Plan a combat encounter for my party.",
+    "notes": "Needs at least tier or party context unless inferable elsewhere."
+  },
+  {
+    "category": "should_not_trigger",
+    "query": "How many battle points does a five-PC party get?",
+    "notes": "Belongs to encounter budgeting."
+  },
+  {
+    "category": "should_not_trigger",
+    "query": "Choose which adversary roles go well with a support caster in Daggerheart.",
+    "notes": "Belongs to adversary selection."
+  },
+  {
+    "category": "should_not_trigger",
+    "query": "Create a new tier 2 bruiser for a haunted foundry.",
+    "notes": "Belongs to adversary creation."
+  },
+  {
+    "category": "should_not_trigger",
+    "query": "Design a traversal environment for a burning rope bridge.",
+    "notes": "Belongs to environment design."
+  }
+]
