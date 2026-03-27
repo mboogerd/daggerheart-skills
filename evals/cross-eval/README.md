@@ -84,9 +84,6 @@ bash scripts/run_cross_eval_local.sh --executor claude-haiku-4-5-20251001 --judg
 Useful options:
 
 - `--scenario <path>`
-- `--openai-model gpt-5.4-nano`
-- `--anthropic-model claude-haiku-4-5-20251001`
-- `--judge-openai-model gpt-5.4`
 - `--executor <model-name>`
 - `--executor-provider openai|anthropic` when inference is ambiguous
 - `--judge <model-name>`
@@ -104,10 +101,8 @@ bash scripts/run_cross_eval_local.sh --scenario evals/cross-eval/scenarios/tier1
 bash scripts/run_cross_eval_local.sh --scenario evals/cross-eval/scenarios/tier1_bridge_defense.json --executor claude-haiku-4-5-20251001 --judge gpt-5.4 --judge-provider openai
 ```
 
-Legacy matrix-oriented options are still available when needed:
+Legacy compatibility options are still available when needed:
 
-- `--executor-provider openai|anthropic`
-- `--judge-provider openai|anthropic`
 - `--max-attempts 2`
 - `--lane anthropic-by-openai --attempt-number 2`
 
@@ -119,6 +114,19 @@ Accepted legacy lane names are:
 - `anthropic-gen-openai-judge`
 
 The older `codex-*` and `claude-*` lane aliases still work for compatibility, but provider names are preferred.
+
+## GitHub Actions
+
+The manual GitHub Actions workflow runs each lane as its own job instead of batching attempts inside one invocation.
+
+The workflow inputs are:
+
+- `scenario`
+- `openai_executor`
+- `anthropic_executor`
+- `openai_judge`
+- `anthropic_judge`
+- `mock_run`
 
 ## GitHub-Like Local Flow
 

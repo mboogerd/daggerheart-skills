@@ -8,20 +8,25 @@ on:
         required: true
         default: "evals/cross-eval/scenarios/tier1_leader_smoke.json"
         type: string
-      openai_model:
-        description: "OpenAI model"
+      openai_executor:
+        description: "OpenAI executor model"
         required: true
         default: "gpt-5.4-nano"
         type: string
-      anthropic_model:
-        description: "Anthropic model"
+      anthropic_executor:
+        description: "Anthropic executor model"
         required: true
         default: "claude-haiku-4-5-20251001"
         type: string
-      max_attempts:
-        description: "Maximum alternating attempts before success"
+      openai_judge:
+        description: "OpenAI judge model"
         required: true
-        default: "2"
+        default: "gpt-5.4"
+        type: string
+      anthropic_judge:
+        description: "Anthropic judge model"
+        required: true
+        default: "claude-haiku-4-5-20251001"
         type: string
       mock_run:
         description: "Use fixture output instead of live model calls"
@@ -35,10 +40,10 @@ permissions:
   id-token: write
 
 jobs:
-  mock-cross-eval:
+  mock-openai-by-anthropic:
     if: ${{ inputs.mock_run }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
@@ -55,8 +60,8 @@ jobs:
       - name: Refresh checked-in fixtures
         run: python3 scripts/render_cross_eval_fixtures.py "${{ inputs.scenario }}"
 
-      - name: Run mock cross-eval session
-        id: cross_eval
+      - name: Run mock openai-by-anthropic lane
+        id: mock_lane
         continue-on-error: true
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -64,160 +69,41 @@ jobs:
         run: |
           python3 scripts/run_cross_eval_session.py \
             --scenario "${{ inputs.scenario }}" \
-            --output-root cross-eval \
-            --junit-xml test-results/cross-eval.junit.xml \
-            --openai-model "${{ inputs.openai_model }}" \
-            --anthropic-model "${{ inputs.anthropic_model }}" \
-            --max-attempts "${{ inputs.max_attempts }}" \
+            --output-root cross-eval-openai-by-anthropic \
+            --junit-xml test-results/openai-by-anthropic.junit.xml \
+            --executor "${{ inputs.openai_executor }}" \
+            --judge "${{ inputs.anthropic_judge }}" \
             --mock
 
       - name: Add workflow summary
-        if: ${{ !cancelled() && hashFiles('cross-eval/reports/summary.md') != '' }}
-        run: cat cross-eval/reports/summary.md >> "$GITHUB_STEP_SUMMARY"
+        if: ${{ !cancelled() && hashFiles('cross-eval-openai-by-anthropic/reports/summary.md') != '' }}
+        run: cat cross-eval-openai-by-anthropic/reports/summary.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Publish cross-eval results
-        if: ${{ !cancelled() && hashFiles('test-results/cross-eval.junit.xml') != '' }}
+      - name: Publish mock results
+        if: ${{ !cancelled() && hashFiles('test-results/openai-by-anthropic.junit.xml') != '' }}
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
-          files: test-results/cross-eval.junit.xml
-          check_name: Cross Eval Results
+          files: test-results/openai-by-anthropic.junit.xml
+          check_name: Cross Eval Mock openai-by-anthropic
           comment_mode: off
 
-      - name: Upload cross-eval artifacts
+      - name: Upload mock artifacts
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: cross-eval
+          name: cross-eval-openai-by-anthropic
           path: |
-            cross-eval/**
-            test-results/cross-eval.junit.xml
+            cross-eval-openai-by-anthropic/**
+            test-results/openai-by-anthropic.junit.xml
 
-      - name: Fail workflow when cross-eval fails
-        if: steps.cross_eval.outcome == 'failure'
+      - name: Fail workflow when lane fails
+        if: steps.mock_lane.outcome == 'failure'
         run: exit 1
 
-  openai-attempt-1:
-    if: ${{ !inputs.mock_run }}
+  mock-anthropic-by-openai:
+    if: ${{ inputs.mock_run }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Verify OpenAI secret
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: test -n "$OPENAI_API_KEY"
-
-      - name: Refresh checked-in fixtures
-        run: python3 scripts/render_cross_eval_fixtures.py "${{ inputs.scenario }}"
-
-      - name: Validate supported attempt count
-        run: test "${{ inputs.max_attempts }}" -ge 1 && test "${{ inputs.max_attempts }}" -le 2
-
-      - name: Prepare cross-eval prompts
-        run: |
-          python3 scripts/run_cross_eval_session.py \
-            --scenario "${{ inputs.scenario }}" \
-            --output-root cross-eval \
-            --openai-model "${{ inputs.openai_model }}" \
-            --anthropic-model "${{ inputs.anthropic_model }}" \
-            --max-attempts "${{ inputs.max_attempts }}" \
-            --prepare-only
-
-      - name: Attempt 1 generate with OpenAI
-        uses: openai/codex-action@v1
-        with:
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          prompt-file: cross-eval/attempt-01-openai-by-anthropic/prompts/openai-generate.txt
-          output-file: cross-eval/attempt-01-openai-by-anthropic/outputs/openai-generated.md
-          working-directory: .
-          sandbox: read-only
-          codex-args: --model ${{ inputs.openai_model }}
-
-      - name: Upload attempt 1 artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: cross-eval-attempt-01
-          path: cross-eval/attempt-01-openai-by-anthropic/**
-
-  anthropic-attempt-2:
-    if: ${{ !inputs.mock_run && fromJSON(inputs.max_attempts) >= 2 }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Verify Anthropic secret
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: test -n "$ANTHROPIC_API_KEY"
-
-      - name: Refresh checked-in fixtures
-        run: python3 scripts/render_cross_eval_fixtures.py "${{ inputs.scenario }}"
-
-      - name: Prepare cross-eval prompts
-        run: |
-          python3 scripts/run_cross_eval_session.py \
-            --scenario "${{ inputs.scenario }}" \
-            --output-root cross-eval \
-            --openai-model "${{ inputs.openai_model }}" \
-            --anthropic-model "${{ inputs.anthropic_model }}" \
-            --max-attempts "${{ inputs.max_attempts }}" \
-            --prepare-only
-
-      - name: Load attempt 2 Anthropic prompt
-        id: attempt_2_prompt
-        run: |
-          {
-            echo 'prompt<<EOF'
-            cat cross-eval/attempt-02-anthropic-by-openai/prompts/anthropic-generate.txt
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Attempt 2 generate with Anthropic
-        id: attempt_2_anthropic
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ github.token }}
-          prompt: ${{ steps.attempt_2_prompt.outputs.prompt }}
-          claude_args: |
-            --model ${{ inputs.anthropic_model }}
-            --max-turns 8
-
-      - name: Extract attempt 2 Anthropic output
-        run: |
-          python3 scripts/extract_claude_action_output.py \
-            --input "${{ steps.attempt_2_anthropic.outputs.execution_file }}" \
-            --output cross-eval/attempt-02-anthropic-by-openai/outputs/anthropic-generated.md
-
-      - name: Upload attempt 2 artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: cross-eval-attempt-02
-          path: cross-eval/attempt-02-anthropic-by-openai/**
-
-  evaluate-cross-eval:
-    if: ${{ !inputs.mock_run }}
-    needs:
-      - openai-attempt-1
-      - anthropic-attempt-2
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
@@ -231,7 +117,67 @@ jobs:
       - name: Install Python dependencies
         run: python3 -m pip install -r requirements.txt
 
-      - name: Verify live-run secrets
+      - name: Refresh checked-in fixtures
+        run: python3 scripts/render_cross_eval_fixtures.py "${{ inputs.scenario }}"
+
+      - name: Run mock anthropic-by-openai lane
+        id: mock_lane
+        continue-on-error: true
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python3 scripts/run_cross_eval_session.py \
+            --scenario "${{ inputs.scenario }}" \
+            --output-root cross-eval-anthropic-by-openai \
+            --junit-xml test-results/anthropic-by-openai.junit.xml \
+            --executor "${{ inputs.anthropic_executor }}" \
+            --judge "${{ inputs.openai_judge }}" \
+            --mock
+
+      - name: Add workflow summary
+        if: ${{ !cancelled() && hashFiles('cross-eval-anthropic-by-openai/reports/summary.md') != '' }}
+        run: cat cross-eval-anthropic-by-openai/reports/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish mock results
+        if: ${{ !cancelled() && hashFiles('test-results/anthropic-by-openai.junit.xml') != '' }}
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: test-results/anthropic-by-openai.junit.xml
+          check_name: Cross Eval Mock anthropic-by-openai
+          comment_mode: off
+
+      - name: Upload mock artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-eval-anthropic-by-openai
+          path: |
+            cross-eval-anthropic-by-openai/**
+            test-results/anthropic-by-openai.junit.xml
+
+      - name: Fail workflow when lane fails
+        if: steps.mock_lane.outcome == 'failure'
+        run: exit 1
+
+  openai-by-anthropic:
+    if: ${{ !inputs.mock_run }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: python3 -m pip install -r requirements.txt
+
+      - name: Verify secrets
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -242,31 +188,27 @@ jobs:
       - name: Refresh checked-in fixtures
         run: python3 scripts/render_cross_eval_fixtures.py "${{ inputs.scenario }}"
 
-      - name: Prepare cross-eval prompts
+      - name: Prepare lane prompts
         run: |
           python3 scripts/run_cross_eval_session.py \
             --scenario "${{ inputs.scenario }}" \
-            --output-root cross-eval \
-            --openai-model "${{ inputs.openai_model }}" \
-            --anthropic-model "${{ inputs.anthropic_model }}" \
-            --max-attempts "${{ inputs.max_attempts }}" \
+            --output-root cross-eval-openai-by-anthropic \
+            --executor "${{ inputs.openai_executor }}" \
+            --judge "${{ inputs.anthropic_judge }}" \
             --prepare-only
 
-      - name: Download attempt 1 artifact
-        uses: actions/download-artifact@v4
+      - name: Generate with OpenAI
+        uses: openai/codex-action@v1
         with:
-          name: cross-eval-attempt-01
-          path: cross-eval/attempt-01-openai-by-anthropic
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: cross-eval-openai-by-anthropic/attempt-01-openai-by-anthropic/prompts/openai-generate.txt
+          output-file: cross-eval-openai-by-anthropic/attempt-01-openai-by-anthropic/outputs/openai-generated.md
+          working-directory: .
+          sandbox: read-only
+          codex-args: --model ${{ inputs.openai_executor }}
 
-      - name: Download attempt 2 artifact
-        if: ${{ fromJSON(inputs.max_attempts) >= 2 }}
-        uses: actions/download-artifact@v4
-        with:
-          name: cross-eval-attempt-02
-          path: cross-eval/attempt-02-anthropic-by-openai
-
-      - name: Evaluate generated outputs
-        id: cross_eval_live
+      - name: Evaluate lane
+        id: lane_eval
         continue-on-error: true
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -274,34 +216,136 @@ jobs:
         run: |
           python3 scripts/run_cross_eval_session.py \
             --scenario "${{ inputs.scenario }}" \
-            --output-root cross-eval \
-            --junit-xml test-results/cross-eval.junit.xml \
-            --openai-model "${{ inputs.openai_model }}" \
-            --anthropic-model "${{ inputs.anthropic_model }}" \
-            --max-attempts "${{ inputs.max_attempts }}" \
+            --output-root cross-eval-openai-by-anthropic \
+            --junit-xml test-results/openai-by-anthropic.junit.xml \
+            --executor "${{ inputs.openai_executor }}" \
+            --judge "${{ inputs.anthropic_judge }}" \
             --use-existing-outputs
 
       - name: Add workflow summary
-        if: ${{ !cancelled() && hashFiles('cross-eval/reports/summary.md') != '' }}
-        run: cat cross-eval/reports/summary.md >> "$GITHUB_STEP_SUMMARY"
+        if: ${{ !cancelled() && hashFiles('cross-eval-openai-by-anthropic/reports/summary.md') != '' }}
+        run: cat cross-eval-openai-by-anthropic/reports/summary.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Publish cross-eval results
-        if: ${{ !cancelled() && hashFiles('test-results/cross-eval.junit.xml') != '' }}
+      - name: Publish lane results
+        if: ${{ !cancelled() && hashFiles('test-results/openai-by-anthropic.junit.xml') != '' }}
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
-          files: test-results/cross-eval.junit.xml
-          check_name: Cross Eval Results
+          files: test-results/openai-by-anthropic.junit.xml
+          check_name: Cross Eval openai-by-anthropic
           comment_mode: off
 
-      - name: Upload cross-eval artifacts
+      - name: Upload lane artifacts
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: cross-eval
+          name: cross-eval-openai-by-anthropic
           path: |
-            cross-eval/**
-            test-results/cross-eval.junit.xml
+            cross-eval-openai-by-anthropic/**
+            test-results/openai-by-anthropic.junit.xml
 
-      - name: Fail workflow when cross-eval fails
-        if: steps.cross_eval_live.outcome == 'failure'
+      - name: Fail workflow when lane fails
+        if: steps.lane_eval.outcome == 'failure'
+        run: exit 1
+
+  anthropic-by-openai:
+    if: ${{ !inputs.mock_run }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: python3 -m pip install -r requirements.txt
+
+      - name: Verify secrets
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          test -n "$OPENAI_API_KEY"
+          test -n "$ANTHROPIC_API_KEY"
+
+      - name: Refresh checked-in fixtures
+        run: python3 scripts/render_cross_eval_fixtures.py "${{ inputs.scenario }}"
+
+      - name: Prepare lane prompts
+        run: |
+          python3 scripts/run_cross_eval_session.py \
+            --scenario "${{ inputs.scenario }}" \
+            --output-root cross-eval-anthropic-by-openai \
+            --executor "${{ inputs.anthropic_executor }}" \
+            --judge "${{ inputs.openai_judge }}" \
+            --prepare-only
+
+      - name: Load Anthropic prompt
+        id: lane_prompt
+        run: |
+          {
+            echo 'prompt<<EOF'
+            cat cross-eval-anthropic-by-openai/attempt-01-anthropic-by-openai/prompts/anthropic-generate.txt
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Generate with Anthropic
+        id: lane_anthropic
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ github.token }}
+          prompt: ${{ steps.lane_prompt.outputs.prompt }}
+          claude_args: |
+            --model ${{ inputs.anthropic_executor }}
+            --max-turns 8
+
+      - name: Extract Anthropic output
+        run: |
+          python3 scripts/extract_claude_action_output.py \
+            --input "${{ steps.lane_anthropic.outputs.execution_file }}" \
+            --output cross-eval-anthropic-by-openai/attempt-01-anthropic-by-openai/outputs/anthropic-generated.md
+
+      - name: Evaluate lane
+        id: lane_eval
+        continue-on-error: true
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python3 scripts/run_cross_eval_session.py \
+            --scenario "${{ inputs.scenario }}" \
+            --output-root cross-eval-anthropic-by-openai \
+            --junit-xml test-results/anthropic-by-openai.junit.xml \
+            --executor "${{ inputs.anthropic_executor }}" \
+            --judge "${{ inputs.openai_judge }}" \
+            --use-existing-outputs
+
+      - name: Add workflow summary
+        if: ${{ !cancelled() && hashFiles('cross-eval-anthropic-by-openai/reports/summary.md') != '' }}
+        run: cat cross-eval-anthropic-by-openai/reports/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish lane results
+        if: ${{ !cancelled() && hashFiles('test-results/anthropic-by-openai.junit.xml') != '' }}
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: test-results/anthropic-by-openai.junit.xml
+          check_name: Cross Eval anthropic-by-openai
+          comment_mode: off
+
+      - name: Upload lane artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-eval-anthropic-by-openai
+          path: |
+            cross-eval-anthropic-by-openai/**
+            test-results/anthropic-by-openai.junit.xml
+
+      - name: Fail workflow when lane fails
+        if: steps.lane_eval.outcome == 'failure'
         run: exit 1
