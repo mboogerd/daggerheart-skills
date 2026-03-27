@@ -9,6 +9,10 @@ OPENAI_MODEL="gpt-5.4-nano"
 ANTHROPIC_MODEL="claude-haiku-4-5-20251001"
 JUDGE_OPENAI_MODEL=""
 JUDGE_ANTHROPIC_MODEL=""
+EXECUTOR_MODEL=""
+EXECUTOR_PROVIDER=""
+JUDGE_MODEL=""
+JUDGE_PROVIDER=""
 MAX_ATTEMPTS="2"
 LANE=""
 ATTEMPT_NUMBER="1"
@@ -20,7 +24,7 @@ Usage:
   scripts/run_cross_eval_local.sh [mode] [options]
 
 Modes:
-  live       Run the full local cross-eval with local Codex/Claude CLIs.
+  live       Run one local cross-eval invocation. Prefer --executor and --judge.
   mock       Run the fixture-only mock path.
   prepare    Generate prompt files only, for a GitHub-like local flow.
   evaluate   Evaluate already-generated outputs under the output root.
@@ -33,13 +37,18 @@ Options:
   --anthropic-model MODEL
   --judge-openai-model MODEL
   --judge-anthropic-model MODEL
-  --max-attempts N
+  --executor MODEL
+  --executor-provider PROVIDER
+  --judge MODEL
+  --judge-provider PROVIDER
+  --max-attempts N           Legacy matrix mode.
   --lane openai-by-anthropic|anthropic-by-openai
   --attempt-number N
   -h, --help
 
 Examples:
-  scripts/run_cross_eval_local.sh
+  scripts/run_cross_eval_local.sh --executor claude-haiku-4-5-20251001 --judge gpt-5.4
+  scripts/run_cross_eval_local.sh --executor claude-haiku-4-5-20251001 --judge gpt-5.4 --judge-provider openai
   scripts/run_cross_eval_local.sh --lane anthropic-by-openai --attempt-number 2
   scripts/run_cross_eval_local.sh mock
   scripts/run_cross_eval_local.sh prepare --output-root /tmp/cross-eval-local
@@ -90,6 +99,22 @@ while [[ $# -gt 0 ]]; do
       JUDGE_ANTHROPIC_MODEL="$2"
       shift 2
       ;;
+    --executor)
+      EXECUTOR_MODEL="$2"
+      shift 2
+      ;;
+    --executor-provider)
+      EXECUTOR_PROVIDER="$2"
+      shift 2
+      ;;
+    --judge)
+      JUDGE_MODEL="$2"
+      shift 2
+      ;;
+    --judge-provider)
+      JUDGE_PROVIDER="$2"
+      shift 2
+      ;;
     --max-attempts)
       MAX_ATTEMPTS="$2"
       shift 2
@@ -132,7 +157,25 @@ if [[ -n "$JUDGE_ANTHROPIC_MODEL" ]]; then
   COMMON_ARGS+=(--judge-anthropic-model "$JUDGE_ANTHROPIC_MODEL")
 fi
 
-if [[ -n "$LANE" ]]; then
+if [[ -n "$EXECUTOR_MODEL" ]]; then
+  COMMON_ARGS+=(--executor "$EXECUTOR_MODEL")
+fi
+
+if [[ -n "$EXECUTOR_PROVIDER" ]]; then
+  COMMON_ARGS+=(--executor-provider "$EXECUTOR_PROVIDER")
+fi
+
+if [[ -n "$JUDGE_MODEL" ]]; then
+  COMMON_ARGS+=(--judge "$JUDGE_MODEL")
+fi
+
+if [[ -n "$JUDGE_PROVIDER" ]]; then
+  COMMON_ARGS+=(--judge-provider "$JUDGE_PROVIDER")
+fi
+
+if [[ -n "$EXECUTOR_MODEL" || -n "$JUDGE_MODEL" ]]; then
+  COMMON_ARGS+=(--attempt-number "$ATTEMPT_NUMBER")
+elif [[ -n "$LANE" ]]; then
   COMMON_ARGS+=(--lane "$LANE" --attempt-number "$ATTEMPT_NUMBER")
 else
   COMMON_ARGS+=(--max-attempts "$MAX_ATTEMPTS")

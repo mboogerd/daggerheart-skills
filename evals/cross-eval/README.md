@@ -78,24 +78,40 @@ That writes per-attempt prompts, outputs, JSON reports, a markdown summary, and 
 After exporting `OPENAI_API_KEY` and `ANTHROPIC_API_KEY`, run:
 
 ```bash
-bash scripts/run_cross_eval_local.sh
+bash scripts/run_cross_eval_local.sh --executor claude-haiku-4-5-20251001 --judge gpt-5.4
 ```
 
 Useful options:
 
 - `--scenario <path>`
-- `--max-attempts 2`
 - `--openai-model gpt-5.4-nano`
 - `--anthropic-model claude-haiku-4-5-20251001`
-- `--lane anthropic-by-openai --attempt-number 2`
+- `--judge-openai-model gpt-5.4`
+- `--executor <model-name>`
+- `--executor-provider openai|anthropic` when inference is ambiguous
+- `--judge <model-name>`
+- `--judge-provider openai|anthropic` when inference is ambiguous
 
-If one lane is failing and you want to rerun only that lane locally, use:
+Single-run mode is the preferred interface. The runner infers providers from model names like `gpt-*` and `claude-*`.
+
+Examples:
 
 ```bash
-bash scripts/run_cross_eval_local.sh --scenario evals/cross-eval/scenarios/tier1_bridge_defense.json --lane anthropic-by-openai --attempt-number 2
+bash scripts/run_cross_eval_local.sh --scenario evals/cross-eval/scenarios/tier1_bridge_defense.json --executor claude-haiku-4-5-20251001 --judge gpt-5.4
 ```
 
-Accepted lane names are:
+```bash
+bash scripts/run_cross_eval_local.sh --scenario evals/cross-eval/scenarios/tier1_bridge_defense.json --executor claude-haiku-4-5-20251001 --judge gpt-5.4 --judge-provider openai
+```
+
+Legacy matrix-oriented options are still available when needed:
+
+- `--executor-provider openai|anthropic`
+- `--judge-provider openai|anthropic`
+- `--max-attempts 2`
+- `--lane anthropic-by-openai --attempt-number 2`
+
+Accepted legacy lane names are:
 
 - `openai-by-anthropic`
 - `anthropic-by-openai`

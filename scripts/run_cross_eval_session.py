@@ -34,6 +34,15 @@ class CommandResult:
     error: str | None = None
 
 
+@dataclass(frozen=True)
+class AttemptSpec:
+    attempt_number: int
+    skill_llm_provider: str
+    skill_model: str
+    judge_llm_provider: str
+    judge_model: str
+
+
 def read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text())
 
@@ -75,6 +84,25 @@ def parse_lane(value: str) -> tuple[str, str]:
     raise SystemExit(
         "--lane must be one of: openai-by-anthropic, anthropic-by-openai, openai-gen-anthropic-judge, anthropic-gen-openai-judge."
     )
+
+
+def normalize_provider_name(value: str) -> str:
+    normalized = value.strip().lower().replace("_", "-")
+    if normalized in {"openai", "codex"}:
+        return "openai"
+    if normalized in {"anthropic", "claude"}:
+        return "anthropic"
+    raise SystemExit("--executor-provider/--judge-provider must be one of: openai, anthropic.")
+
+
+def infer_provider_from_model(model: str) -> str | None:
+    normalized = model.strip().lower()
+    if normalized.startswith("claude-"):
+        return "anthropic"
+    openai_prefixes = ("gpt-", "o1", "o3", "o4", "o5", "codex-")
+    if normalized.startswith(openai_prefixes):
+        return "openai"
+    return None
 
 
 def prepare_attempt_files(
@@ -191,6 +219,91 @@ def model_for_provider(provider: str, *, openai_model: str, anthropic_model: str
     if provider == "anthropic":
         return anthropic_model
     raise ValueError(f"Unsupported provider: {provider}")
+
+
+def resolve_attempt_specs(
+    *,
+    executor_model: str | None,
+    executor_provider: str | None,
+    judge_model: str | None,
+    judge_provider: str | None,
+    lane: str | None,
+    attempt_number: int,
+    max_attempts: int | None,
+    scenario_max_attempts: int,
+    openai_model: str,
+    anthropic_model: str,
+    judge_openai_model: str | None,
+    judge_anthropic_model: str | None,
+) -> tuple[list[AttemptSpec], int]:
+    if lane and max_attempts is not None:
+        raise SystemExit("--lane cannot be combined with --max-attempts.")
+
+    if executor_model is not None or executor_provider is not None or judge_model is not None or judge_provider is not None:
+        if not executor_model or not judge_model:
+            raise SystemExit("--executor and --judge must be provided together.")
+        if lane:
+            raise SystemExit("--lane is legacy and cannot be combined with --executor/--judge.")
+        if max_attempts is not None:
+            raise SystemExit("--max-attempts is legacy matrix mode and cannot be combined with --executor/--judge.")
+
+        resolved_executor_provider = (
+            normalize_provider_name(executor_provider)
+            if executor_provider
+            else infer_provider_from_model(executor_model)
+        )
+        resolved_judge_provider = (
+            normalize_provider_name(judge_provider)
+            if judge_provider
+            else infer_provider_from_model(judge_model)
+        )
+        if resolved_executor_provider is None:
+            raise SystemExit("Could not infer executor provider from model name. Use --executor-provider.")
+        if resolved_judge_provider is None:
+            raise SystemExit("Could not infer judge provider from model name. Use --judge-provider.")
+
+        return [
+            AttemptSpec(
+                attempt_number=attempt_number,
+                skill_llm_provider=resolved_executor_provider,
+                skill_model=executor_model,
+                judge_llm_provider=resolved_judge_provider,
+                judge_model=judge_model,
+            )
+        ], 1
+
+    if lane:
+        legacy_plan = [parse_lane(lane)]
+        requested_attempts = 1
+        attempt_numbers = [attempt_number]
+    else:
+        requested_attempts = max_attempts or scenario_max_attempts
+        if requested_attempts < 1:
+            raise SystemExit("--max-attempts must be at least 1.")
+        legacy_plan = build_attempt_plan(requested_attempts)
+        attempt_numbers = list(range(1, requested_attempts + 1))
+
+    resolved_judge_openai_model = judge_openai_model or openai_model
+    resolved_judge_anthropic_model = judge_anthropic_model or anthropic_model
+    attempt_specs = [
+        AttemptSpec(
+            attempt_number=current_attempt_number,
+            skill_llm_provider=skill_llm_provider,
+            skill_model=model_for_provider(
+                skill_llm_provider,
+                openai_model=openai_model,
+                anthropic_model=anthropic_model,
+            ),
+            judge_llm_provider=judge_llm_provider,
+            judge_model=model_for_provider(
+                judge_llm_provider,
+                openai_model=resolved_judge_openai_model,
+                anthropic_model=resolved_judge_anthropic_model,
+            ),
+        )
+        for current_attempt_number, (skill_llm_provider, judge_llm_provider) in zip(attempt_numbers, legacy_plan, strict=True)
+    ]
+    return attempt_specs, requested_attempts
 
 
 def build_generation_prompt(properties: dict[str, Any], user_request: str) -> str:
@@ -395,23 +508,22 @@ def write_summary(path: Path, report: dict[str, Any]) -> None:
 
 def run_attempt(
     *,
-    attempt_number: int,
-    skill_llm_provider: str,
-    judge_llm_provider: str,
+    attempt_spec: AttemptSpec,
     scenario: dict[str, Any],
     properties: dict[str, Any],
     request_path: Path,
     properties_path: Path,
     request_text: str,
     output_root: Path,
-    openai_model: str,
-    anthropic_model: str,
-    judge_openai_model: str | None,
-    judge_anthropic_model: str | None,
     mock: bool,
     mock_fail_attempt: int | None,
     use_existing_outputs: bool,
 ) -> dict[str, Any]:
+    attempt_number = attempt_spec.attempt_number
+    skill_llm_provider = attempt_spec.skill_llm_provider
+    judge_llm_provider = attempt_spec.judge_llm_provider
+    skill_model = attempt_spec.skill_model
+    judge_model = attempt_spec.judge_model
     paths = prepare_attempt_files(
         attempt_number=attempt_number,
         skill_llm_provider=skill_llm_provider,
@@ -432,10 +544,6 @@ def run_attempt(
     judge_output_path = paths["judge_output_path"]
     judge_metadata_path = paths["judge_metadata_path"]
     generation_prompt = generation_prompt_path.read_text()
-    skill_model = model_for_provider(skill_llm_provider, openai_model=openai_model, anthropic_model=anthropic_model)
-    resolved_judge_openai_model = judge_openai_model or openai_model
-    resolved_judge_anthropic_model = judge_anthropic_model or anthropic_model
-    judge_model: str | None = None
 
     if mock:
         materialize_mock_generation(ROOT / scenario["sample_output"], generated_output_path)
@@ -524,11 +632,6 @@ def run_attempt(
         else:
             from structured_judge import judge_with_pydantic_ai
 
-            judge_model = model_for_provider(
-                judge_llm_provider,
-                openai_model=resolved_judge_openai_model,
-                anthropic_model=resolved_judge_anthropic_model,
-            )
             try:
                 judge_payload, judge_metadata = judge_with_pydantic_ai(
                     provider=judge_llm_provider,
@@ -594,6 +697,10 @@ def main() -> int:
     parser.add_argument("--anthropic-model", default="claude-haiku-4-5-20251001")
     parser.add_argument("--judge-openai-model")
     parser.add_argument("--judge-anthropic-model")
+    parser.add_argument("--executor")
+    parser.add_argument("--executor-provider")
+    parser.add_argument("--judge")
+    parser.add_argument("--judge-provider")
     parser.add_argument("--codex-model", dest="openai_model")
     parser.add_argument("--claude-model", dest="anthropic_model")
     parser.add_argument("--max-attempts", type=int)
@@ -619,28 +726,29 @@ def main() -> int:
     output_root = args.output_root
     output_root.mkdir(parents=True, exist_ok=True)
 
-    if args.lane and args.max_attempts is not None:
-        raise SystemExit("--lane cannot be combined with --max-attempts.")
     if args.attempt_number < 1:
         raise SystemExit("--attempt-number must be at least 1.")
-
-    if args.lane:
-        attempt_plan = [parse_lane(args.lane)]
-        requested_attempts = 1
-        attempt_numbers = [args.attempt_number]
-    else:
-        requested_attempts = args.max_attempts or int(scenario.get("max_attempts", 3))
-        if requested_attempts < 1:
-            raise SystemExit("--max-attempts must be at least 1.")
-        attempt_plan = build_attempt_plan(requested_attempts)
-        attempt_numbers = list(range(1, requested_attempts + 1))
+    attempt_specs, requested_attempts = resolve_attempt_specs(
+        executor_model=args.executor,
+        executor_provider=args.executor_provider,
+        judge_model=args.judge,
+        judge_provider=args.judge_provider,
+        lane=args.lane,
+        attempt_number=args.attempt_number,
+        max_attempts=args.max_attempts,
+        scenario_max_attempts=int(scenario.get("max_attempts", 3)),
+        openai_model=args.openai_model,
+        anthropic_model=args.anthropic_model,
+        judge_openai_model=args.judge_openai_model,
+        judge_anthropic_model=args.judge_anthropic_model,
+    )
 
     if args.prepare_only:
-        for attempt_number, (skill_llm_provider, judge_llm_provider) in zip(attempt_numbers, attempt_plan, strict=True):
+        for attempt_spec in attempt_specs:
             prepare_attempt_files(
-                attempt_number=attempt_number,
-                skill_llm_provider=skill_llm_provider,
-                judge_llm_provider=judge_llm_provider,
+                attempt_number=attempt_spec.attempt_number,
+                skill_llm_provider=attempt_spec.skill_llm_provider,
+                judge_llm_provider=attempt_spec.judge_llm_provider,
                 request_path=request_path,
                 properties_path=properties_path,
                 request_text=request_text,
@@ -664,21 +772,15 @@ def main() -> int:
     attempts: list[dict[str, Any]] = []
     stop_reason = "completed_requested_attempts"
 
-    for attempt_number, (skill_llm_provider, judge_llm_provider) in zip(attempt_numbers, attempt_plan, strict=True):
+    for attempt_spec in attempt_specs:
         attempt_report = run_attempt(
-            attempt_number=attempt_number,
-            skill_llm_provider=skill_llm_provider,
-            judge_llm_provider=judge_llm_provider,
+            attempt_spec=attempt_spec,
             scenario=scenario,
             properties=properties,
             request_path=request_path,
             properties_path=properties_path,
             request_text=request_text,
             output_root=output_root,
-            openai_model=args.openai_model,
-            anthropic_model=args.anthropic_model,
-            judge_openai_model=args.judge_openai_model,
-            judge_anthropic_model=args.judge_anthropic_model,
             mock=args.mock,
             mock_fail_attempt=args.mock_fail_attempt,
             use_existing_outputs=args.use_existing_outputs,
