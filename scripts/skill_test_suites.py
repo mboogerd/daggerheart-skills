@@ -251,10 +251,10 @@ def _build_combat_encounter_planning_properties(scenario: dict[str, Any]) -> dic
         "required_sections": scenario_case["required_sections"],
         "allowed_acquisition_hints": scenario_case.get("allowed_acquisition_hints", []),
         "judge_focus": [
-            "Check that the output follows the required encounter-plan structure.",
-            "Check that the budget math and role costs are plausible for the stated party and tier.",
             "Check that the encounter creates multiple player-facing pressures rather than a flat fight.",
             "Check that the plan gives clear adversary requirements for downstream sourcing without collapsing into full stat blocks.",
+            "Check that the environment and escalation create meaningful scene pressure rather than decorative detail.",
+            "Check that the roster roles feel purposeful and narratively coherent rather than arbitrary.",
             "Check that any acquisition hint is lightweight and does not dominate the planner output.",
         ],
     })

@@ -225,6 +225,7 @@ def build_judge_prompt(
     candidate_name: str,
     candidate_output: str,
 ) -> str:
+    judge_focus = "\n".join(f"- {item}" for item in properties.get("judge_focus", []))
     return textwrap.dedent(
         f"""
         Judge the candidate output for this repository evaluation.
@@ -232,6 +233,9 @@ def build_judge_prompt(
         Use the inline fixtures below as the complete judging context.
         Treat the verification properties as the source of truth.
         Do not invent additional format requirements beyond what is stated here.
+        Deterministic validation has already passed before this judge step.
+        Do not re-fail the candidate over exact heading matching, role-cost arithmetic, point totals, minion-count arithmetic, or acquisition-hint domain checks unless the candidate plainly contradicts the verification properties in a way the deterministic validator would not catch.
+        Focus on the remaining qualitative questions from the judge focus list.
 
         User request fixture (`{display_path(request_path)}`):
         <<<USER_REQUEST
@@ -242,6 +246,9 @@ def build_judge_prompt(
         <<<VERIFICATION_PROPERTIES
         {json.dumps(properties, indent=2)}
         VERIFICATION_PROPERTIES
+
+        Judge focus:
+        {judge_focus}
 
         Candidate generator: {candidate_name}
 
@@ -399,6 +406,8 @@ def run_attempt(
     output_root: Path,
     openai_model: str,
     anthropic_model: str,
+    judge_openai_model: str | None,
+    judge_anthropic_model: str | None,
     mock: bool,
     mock_fail_attempt: int | None,
     use_existing_outputs: bool,
@@ -424,6 +433,8 @@ def run_attempt(
     judge_metadata_path = paths["judge_metadata_path"]
     generation_prompt = generation_prompt_path.read_text()
     skill_model = model_for_provider(skill_llm_provider, openai_model=openai_model, anthropic_model=anthropic_model)
+    resolved_judge_openai_model = judge_openai_model or openai_model
+    resolved_judge_anthropic_model = judge_anthropic_model or anthropic_model
     judge_model: str | None = None
 
     if mock:
@@ -513,7 +524,11 @@ def run_attempt(
         else:
             from structured_judge import judge_with_pydantic_ai
 
-            judge_model = model_for_provider(judge_llm_provider, openai_model=openai_model, anthropic_model=anthropic_model)
+            judge_model = model_for_provider(
+                judge_llm_provider,
+                openai_model=resolved_judge_openai_model,
+                anthropic_model=resolved_judge_anthropic_model,
+            )
             try:
                 judge_payload, judge_metadata = judge_with_pydantic_ai(
                     provider=judge_llm_provider,
@@ -577,6 +592,8 @@ def main() -> int:
     parser.add_argument("--junit-xml", type=Path, default=DEFAULT_JUNIT_XML)
     parser.add_argument("--openai-model", default="gpt-5.4-nano")
     parser.add_argument("--anthropic-model", default="claude-haiku-4-5-20251001")
+    parser.add_argument("--judge-openai-model")
+    parser.add_argument("--judge-anthropic-model")
     parser.add_argument("--codex-model", dest="openai_model")
     parser.add_argument("--claude-model", dest="anthropic_model")
     parser.add_argument("--max-attempts", type=int)
@@ -660,6 +677,8 @@ def main() -> int:
             output_root=output_root,
             openai_model=args.openai_model,
             anthropic_model=args.anthropic_model,
+            judge_openai_model=args.judge_openai_model,
+            judge_anthropic_model=args.judge_anthropic_model,
             mock=args.mock,
             mock_fail_attempt=args.mock_fail_attempt,
             use_existing_outputs=args.use_existing_outputs,

@@ -50,6 +50,11 @@ Every roster slot should also include clear adversary requirements that a downst
 
 `Acquisition hint` is optional. If used, keep it lightweight and only use `prefer-existing` or `prefer-new`.
 
+Keep grouped-cost examples explicit:
+
+- `Count 2`, `Role standard`, `Points 4`
+- `Count 2`, `Role minion`, `Points 2`
+
 When choosing between `support` and `standard`, use `support` for fragile enabling pieces whose main job is healing, buffing, debuffing, or battlefield help. If the adversary is meant to hold space, trade blows, or survive front-line pressure like a regular combatant, use `standard` and price it at 2 points instead.
 
 Practical example:
@@ -72,6 +77,17 @@ Examples:
 An encounter environment should change player decisions, not just decorate the scene.
 
 If the battlefield is intentionally plain, say so and explain why.
+
+## Escalation Rule
+
+Escalation should usually change tempo, pressure, or battlefield state rather than secretly adding extra unpaid roster slots.
+
+If the scene does add reinforcements, make one of these true:
+
+- they were already budgeted in the roster plan
+- they come from an explicit summon/reinforcement feature that does not count against battle points
+
+Do not blend role labels in escalation text. For example, avoid phrases like "a minion group equivalent, support role."
 
 ## Delegation Rule
 

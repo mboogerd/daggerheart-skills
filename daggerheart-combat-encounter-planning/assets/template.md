@@ -1,5 +1,7 @@
 # Combat Encounter Plan Template
 
+Use this exact title. Do not rename it to `# Combat Encounter Plan` or add a different top-level heading above it.
+
 ## Encounter Premise
 
 - Scene:
@@ -35,6 +37,7 @@ For `Role: minion`, `Count` means the number of minion groups, where each group 
 Use legal role pricing: `minion/social/support=1`, `horde/ranged/skulk/standard=2`, `leader=3`, `bruiser=4`, `solo=5`.
 If a medic, helper, or officer is meant to fight like a regular front-line combatant, classify it as `standard` rather than `support`.
 Example: a back-line field medic is `Role: support` and `Points: 1`; a battle surgeon who holds the line is `Role: standard` and `Points: 2`.
+Example grouped costs: `Count: 2`, `Role: standard`, `Points: 4`; `Count: 2`, `Role: minion`, `Points: 2`.
 
 - Slot:
   Count:
@@ -55,6 +58,8 @@ Example: a back-line field medic is `Role: support` and `Points: 1`; a battle su
 
 - Countdown or trigger:
 - What changes when it advances:
+
+Escalation should change pressure, positioning, urgency, or behavior. Do not introduce unpaid reinforcements unless the plan explicitly says they come from an allowed summon/reinforcement feature.
 
 ## Victory and Failure States
 

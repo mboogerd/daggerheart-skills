@@ -7,6 +7,8 @@ OUTPUT_ROOT="$ROOT_DIR/cross-eval"
 JUNIT_XML="$ROOT_DIR/test-results/cross-eval.junit.xml"
 OPENAI_MODEL="gpt-5.4-nano"
 ANTHROPIC_MODEL="claude-haiku-4-5-20251001"
+JUDGE_OPENAI_MODEL=""
+JUDGE_ANTHROPIC_MODEL=""
 MAX_ATTEMPTS="2"
 LANE=""
 ATTEMPT_NUMBER="1"
@@ -29,6 +31,8 @@ Options:
   --junit-xml PATH
   --openai-model MODEL
   --anthropic-model MODEL
+  --judge-openai-model MODEL
+  --judge-anthropic-model MODEL
   --max-attempts N
   --lane openai-by-anthropic|anthropic-by-openai
   --attempt-number N
@@ -78,6 +82,14 @@ while [[ $# -gt 0 ]]; do
       ANTHROPIC_MODEL="$2"
       shift 2
       ;;
+    --judge-openai-model)
+      JUDGE_OPENAI_MODEL="$2"
+      shift 2
+      ;;
+    --judge-anthropic-model)
+      JUDGE_ANTHROPIC_MODEL="$2"
+      shift 2
+      ;;
     --max-attempts)
       MAX_ATTEMPTS="$2"
       shift 2
@@ -111,6 +123,14 @@ COMMON_ARGS=(
   --openai-model "$OPENAI_MODEL"
   --anthropic-model "$ANTHROPIC_MODEL"
 )
+
+if [[ -n "$JUDGE_OPENAI_MODEL" ]]; then
+  COMMON_ARGS+=(--judge-openai-model "$JUDGE_OPENAI_MODEL")
+fi
+
+if [[ -n "$JUDGE_ANTHROPIC_MODEL" ]]; then
+  COMMON_ARGS+=(--judge-anthropic-model "$JUDGE_ANTHROPIC_MODEL")
+fi
 
 if [[ -n "$LANE" ]]; then
   COMMON_ARGS+=(--lane "$LANE" --attempt-number "$ATTEMPT_NUMBER")

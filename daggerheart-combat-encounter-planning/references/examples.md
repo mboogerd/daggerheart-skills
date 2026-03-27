@@ -33,3 +33,10 @@
 - Environment: unstable ritual site is the primary pressure
 - Escalation: countdown advances whenever a PC fails with Fear near the focus point
 - Handoffs: environment-design first, then source adversaries that fit the ritual site and its magical theme
+
+## Example 4: Escalation Without Hidden Budget Drift
+
+- Good escalation: bridge catches fire, smoke reduces sight lines, civilians panic, or the leader orders a mass rush
+- Also good: a Leader feature summons unpaid minions, if the plan says that feature exists
+- Bad escalation: "a second squad arrives" when that squad was never budgeted
+- Bad escalation: "a minion group equivalent, support role" because it mixes roles and cost logic in one phrase
